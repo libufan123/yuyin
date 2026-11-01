@@ -1,0 +1,2087 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>工程检测·Excel红字语音速抄台 (V8 授权控制·回看补抄)</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+  <script>
+    if (typeof XLSX === 'undefined') {
+      document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"><\/script>');
+    }
+    if (typeof JSZip === 'undefined') {
+      document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"><\/script>');
+    }
+  </script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+    }
+    .crosshair-row {
+      background-color: rgba(245, 158, 11, 0.14) !important;
+    }
+    .crosshair-col {
+      background-color: rgba(59, 130, 246, 0.12) !important;
+    }
+    /* Currently speaking cell */
+    .crosshair-active {
+      background-color: #f59e0b !important;
+      color: #0f172a !important;
+      font-weight: 900 !important;
+      box-shadow: 0 0 0 4px #fbbf24, 0 8px 25px -4px rgba(245, 158, 11, 0.85);
+      transform: scale(1.04);
+      z-index: 20;
+      position: relative;
+      border-radius: 6px;
+    }
+    /* Red-font target cells */
+    .cell-red-target {
+      color: #ff4d4f !important;
+      font-weight: 800;
+      background-color: rgba(239, 68, 68, 0.10);
+      border: 1px solid rgba(239, 68, 68, 0.42) !important;
+    }
+    .cell-red-done {
+      color: #f87171 !important;
+      opacity: 0.45;
+      background-color: rgba(15, 23, 42, 0.5);
+    }
+    /* Black-font fixed template cells */
+    .cell-black-fixed {
+      color: #94a3b8;
+      background-color: rgba(15, 23, 42, 0.82);
+    }
+    #zoomTableWrapper {
+      transform-origin: top left;
+      transition: transform 0.14s ease-out;
+    }
+    /* ===== 手机竖屏适配：上表格 / 下精简操控台 ===== */
+    @media (max-width: 1023px) {
+      aside:not(.more-open) .more-item { display: none; }
+    }
+    /* 手机横屏：左表右控双栏 */
+    @media (orientation: landscape) and (max-height: 520px) {
+      main { display: grid !important; grid-template-columns: 1.5fr 1fr; grid-template-rows: minmax(0, 1fr); }
+      main > section { order: 1 !important; min-height: 0 !important; }
+      main > aside { order: 2 !important; max-height: none !important; }
+      header > div > div:first-child { display: none; }
+    }
+    @media (max-width: 639px) {
+      #mainBtns { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+      #mainBtns > div.grid { grid-column: 1 / -1; gap: 6px; }
+      #mainBtns > button { padding-top: 10px; padding-bottom: 10px; font-size: 14px; }
+      #mainBtns > div.grid > button { padding-top: 6px; padding-bottom: 6px; }
+      #mainBtns > div.grid > button span:nth-child(2) { display: none; }
+      #hudMainValue { font-size: 1.75rem; line-height: 2rem; }
+      #tableScrollViewport { min-height: 150px; }
+    }
+  </style>
+</head>
+<body style="height:100dvh" class="bg-slate-950 text-slate-100 h-screen overflow-hidden flex flex-col selection:bg-amber-500 selection:text-slate-950">
+
+  <!-- 顶部紧凑导航栏 -->
+  <header class="bg-slate-900 border-b border-slate-800 shrink-0 z-30">
+    <div class="max-w-[1920px] mx-auto px-4 py-2.5 max-sm:px-2 max-sm:py-1.5 flex flex-wrap items-center justify-between gap-2">
+      <div class="flex items-center gap-2.5 max-sm:hidden">
+        <div class="w-9 h-9 rounded-xl bg-rose-500 flex items-center justify-center text-white font-black text-lg shadow">
+          红
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 id="brandTitleDisplay" class="font-extrabold text-sm sm:text-lg text-white">工程检测·Excel红字语音速抄台</h1>
+            <span class="hidden sm:inline-block px-2 py-0.5 text-[11px] font-bold rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">V8 授权控制·回看补抄</span>
+          </div>
+          <p id="watermarkDisplay" class="hidden sm:block text-[11px] text-slate-400">作者微信：RoadTest_AI ｜ 左侧固定操控台永不滚走 · 右侧表格独立缩放 · 语音读完再跳</p>
+        </div>
+      </div>
+
+      <!-- 顶部导入与演示切换区 -->
+      <div class="flex items-center gap-2 max-sm:w-full">
+        <label for="xlsxFileInput" class="px-4 py-2 max-sm:px-3 max-sm:py-1.5 shrink-0 rounded-xl text-xs sm:text-sm font-black bg-gradient-to-r from-emerald-400 to-teal-500 hover:from-emerald-300 hover:to-teal-400 text-slate-950 cursor-pointer transition flex items-center gap-1.5 shadow-lg shadow-emerald-500/20">
+          📂 1. 打开/拖入 Excel (.xlsx)
+          <input id="xlsxFileInput" type="file" accept=".xlsx,.xls,.csv" class="hidden" />
+        </label>
+
+        <select id="presetSelector" class="min-w-0 max-sm:flex-1 max-sm:py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-100 text-xs sm:text-sm font-semibold rounded-xl px-2.5 py-2 focus:outline-none focus:border-amber-500 cursor-pointer">
+          <option value="road_multi_workbook">📑 演示工作簿 (含4张检测表)</option>
+          <option value="compaction_merged">演示：压实度(灌砂法)红字表</option>
+          <option value="deflection">演示：贝克曼梁弯沉红字表</option>
+          <option value="core">演示：沥青钻芯红字表</option>
+          <option value="env">演示：温湿度记录红字台账</option>
+        </select>
+
+        <button id="btnOpenAdminModal" class="max-sm:hidden px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-xs font-semibold transition" title="授权码生成器与水印设置">
+          ⚙️ 授权码/水印
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- 核心左右分栏工作区（占满剩余屏幕高度，左侧钉死不滚动，右侧表格独立滚动） -->
+  <main class="flex-1 max-w-[1920px] w-full mx-auto px-2 py-2 lg:px-3 lg:py-3 flex flex-col lg:grid lg:grid-cols-12 gap-2 lg:gap-3.5 overflow-hidden min-h-0">
+
+    <!-- ==================== 左侧固定操控台 (占 4/12，看右边表格时随时能点按钮！) ==================== -->
+    <aside class="order-2 lg:order-1 shrink-0 lg:shrink max-h-[42dvh] lg:max-h-none lg:col-span-4 xl:col-span-4 flex flex-col justify-between gap-2 lg:gap-2.5 bg-slate-900 border-2 border-slate-800 rounded-2xl p-2.5 lg:p-3.5 overflow-y-auto min-h-0 shadow-2xl">
+      
+      <!-- 1. 顶部当前红字超大看板 -->
+      <div class="bg-slate-950 border-2 border-amber-500/70 rounded-2xl p-3.5 flex flex-col gap-2 shadow-lg">
+        <div class="flex flex-wrap items-center justify-between gap-1.5">
+          <div class="flex flex-wrap items-center gap-1.5">
+            <span id="hudSheetBadge" class="px-2 py-0.5 rounded bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 font-bold text-xs">
+              表1-压实度
+            </span>
+            <span id="hudColBadge" class="px-2 py-0.5 rounded bg-blue-500/20 border border-blue-500/40 text-blue-300 font-bold text-xs">
+              C列
+            </span>
+            <span id="hudRowBadge" class="px-2 py-0.5 rounded bg-amber-500/20 border border-amber-500/40 text-amber-300 font-bold text-xs">
+              项目：桩号
+            </span>
+          </div>
+          <div class="text-xs font-mono text-slate-300">
+            进度：<span id="hudProgressText" class="text-rose-400 font-black text-sm">1 / 24</span>
+          </div>
+        </div>
+
+        <!-- 当前手抄红字数值 -->
+        <div class="py-2.5 px-3 bg-slate-900/90 rounded-xl border border-slate-800 flex items-center justify-between gap-2">
+          <div class="min-w-0">
+            <div id="hudSpokenPreview" class="max-sm:hidden text-xs font-bold text-emerald-400 truncate">
+              🔊 播报：“K零加零二零左”
+            </div>
+            <div id="hudMainValue" class="text-3xl sm:text-4xl xl:text-5xl font-black tracking-tight text-rose-400 font-mono select-all truncate mt-0.5">
+              K0+020左
+            </div>
+          </div>
+          <div class="shrink-0 border-l border-slate-800 pl-2.5 min-w-[7.5rem] max-w-[48%]">
+            <div class="text-[11px] text-slate-400">⏪ 回看（点一下重听）</div>
+            <div id="hudPrevList" class="mt-0.5 flex flex-col gap-0.5"></div>
+          </div>
+        </div>
+
+        <!-- 实时语音与留白倒计时状态栏 -->
+        <div class="flex flex-col gap-1.5">
+          <div class="flex items-center justify-between text-xs">
+            <span id="hudSpeechStatusBadge" class="font-bold px-2 py-0.5 rounded bg-slate-800 text-slate-300">
+              ⏸️ 等待操作（按空格键连播/暂停）
+            </span>
+          </div>
+          <div id="autoCountdownBarWrap" class="hidden w-full bg-slate-900 rounded-full h-2 overflow-hidden border border-slate-800">
+            <div id="autoCountdownBar" class="bg-gradient-to-r from-emerald-400 to-amber-400 h-full transition-all duration-75" style="width: 100%"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2a. 播报时间预估（随语速/停顿实时变化） -->
+      <div class="more-item grid grid-cols-2 gap-2 text-[11px]">
+        <div class="bg-slate-950 border border-sky-500/30 rounded-xl px-2.5 py-1.5">
+          <div class="text-slate-400">⏳ 本表还需约</div>
+          <div id="estCurRemain" class="font-mono font-black text-sky-300 text-base leading-tight">--</div>
+          <div class="text-slate-500">本表全部 <span id="estCurTotal" class="font-mono text-slate-300">--</span></div>
+        </div>
+        <div class="bg-slate-950 border border-violet-500/30 rounded-xl px-2.5 py-1.5">
+          <div class="text-slate-400">🗂️ 全文件还需约</div>
+          <div id="estFileRemain" class="font-mono font-black text-violet-300 text-base leading-tight">--</div>
+          <div class="text-slate-500">全部工作表 <span id="estFileTotal" class="font-mono text-slate-300">--</span></div>
+        </div>
+      </div>
+      <div id="turboBadge" class="hidden text-center text-xs font-black py-1 rounded-lg bg-violet-500 text-white animate-pulse">⚡ 2倍速播报中（松开恢复正常）</div>
+
+      <!-- 2. 核心巨型控制按钮区（随时伸手可点，永不被表格遮挡） -->
+      <div id="mainBtns" class="flex flex-col gap-2">
+        <!-- 主按钮 A：自动连播 / 暂停（绑定空格键） -->
+        <button id="btnAutoPlayToggle" class="w-full py-3.5 px-4 rounded-2xl bg-emerald-500 hover:bg-emerald-400 active:scale-[0.99] text-slate-950 font-black text-base sm:text-lg flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 transition">
+          <span>▶️ 开启自动连播</span>
+          <span id="autoIntervalLabel" class="hidden sm:inline text-xs font-extrabold bg-slate-950/20 px-2 py-0.5 rounded-lg">(快捷键：空格键)</span>
+        </button>
+
+        <!-- 主按钮 B：手动下一格 -->
+        <button id="btnNextCell" class="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-300 hover:to-orange-400 active:scale-[0.99] text-slate-950 font-black text-base sm:text-lg flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 transition">
+          <span>下一格 ➡️</span>
+          <span id="nextKeyHintLabel" class="hidden sm:inline text-xs font-extrabold bg-slate-950/20 px-2 py-0.5 rounded-lg">(快捷键：↓ 或 →)</span>
+        </button>
+
+        <!-- 辅助三联大按钮：上一格 / 重听本格 / 画面回到当前格(F键) -->
+        <div class="grid grid-cols-3 gap-2">
+          <button id="btnPrevCell" class="py-2.5 px-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-100 font-bold text-xs sm:text-sm flex flex-col items-center justify-center gap-0.5 border border-slate-700 transition">
+            <span>⬅️ 上一格</span>
+            <span class="text-[10px] text-slate-400">(↑ 或 ←键)</span>
+          </button>
+
+          <button id="btnReplayVoice" class="py-2.5 px-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-300 font-bold text-xs sm:text-sm flex flex-col items-center justify-center gap-0.5 border border-slate-700 transition">
+            <span>🔊 重听本格</span>
+            <span class="text-[10px] text-slate-400">(R键)</span>
+          </button>
+
+          <button id="btnFocusCurrentCell" class="py-2.5 px-2 rounded-xl bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 font-extrabold text-xs sm:text-sm flex flex-col items-center justify-center gap-0.5 border border-blue-500/40 transition" title="画面立即定位到当前播放格并自动调为最清晰缩放比例">
+            <span>🎯 回到当前格</span>
+            <span class="text-[10px] text-blue-200">(F键·适屏居中)</span>
+          </button>
+        </div>
+      </div>
+
+      <button id="btnHoldTurbo" class="more-item select-none w-full py-2.5 rounded-xl bg-violet-500/20 hover:bg-violet-500/30 border border-violet-500/50 text-violet-200 font-black text-sm" style="touch-action:none;-webkit-user-select:none;-webkit-touch-callout:none">
+        ⚡ 按住 = 整体2倍速 <span class="hidden lg:inline text-[11px] font-bold text-violet-300">(电脑可长按空格键)</span>
+      </button>
+      <button id="btnToggleSettings" class="lg:hidden w-full py-1.5 rounded-xl bg-slate-800 border border-slate-700 text-slate-200 font-bold text-xs">⚙️ 更多：预估时间 / 2倍速 / 语速 / 停顿 / 走格（点开）</button>
+      <div id="settingsBlock" class="more-item flex flex-col gap-2.5">
+
+      <!-- 3. 精确到 0.1 秒的读完停顿调节器 -->
+      <div class="bg-slate-950 p-3 rounded-xl border border-emerald-500/30 flex flex-col gap-2">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-bold text-emerald-300">⏱️ 读完后停顿秒数 (精确到 0.1秒)：</span>
+          <div class="flex items-center gap-1">
+            <button id="btnPauseMinus01" class="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs">-0.1s</button>
+            <input id="autoSecondsNumberInput" type="number" min="0.1" max="10.0" step="0.1" value="0.7" class="w-14 bg-slate-900 border border-emerald-500/50 rounded px-1.5 py-0.5 text-center font-mono font-black text-emerald-400 text-sm focus:outline-none" />
+            <span class="text-xs text-emerald-400 font-bold">秒</span>
+            <button id="btnPausePlus01" class="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs">+0.1s</button>
+          </div>
+        </div>
+        <input id="autoSecondsInput" type="range" min="0.1" max="6.0" step="0.1" value="0.7" class="w-full accent-emerald-500 cursor-pointer" />
+      </div>
+
+      <!-- 4. 走格规则与合并去重设置（默认不开启合并去重，直接一列读到底！） -->
+      <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 flex flex-col gap-2 text-xs">
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="text-slate-400 block mb-1">走格方向：</label>
+            <select id="traversalOrderSelect" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 font-bold text-amber-400">
+              <option value="col" selected>⬇️ 单列从上往下直读</option>
+              <option value="row">➡️ 单行从左往右直读</option>
+            </select>
+          </div>
+          <div>
+            <label class="text-slate-400 block mb-1">播报内容：</label>
+            <select id="voiceDetailSelect" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 font-bold text-emerald-400">
+              <option value="valueOnly" selected>纯报“红字数值”(极速)</option>
+              <option value="shortTelegraph">报“短项目名+数值”</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="flex flex-wrap items-center justify-between gap-2 pt-1.5 border-t border-slate-800/80">
+          <!-- 合并格去重：按用户要求加回，且默认不勾选（默认直接一列读下去） -->
+          <label class="flex items-center gap-1.5 cursor-pointer text-slate-200 font-semibold" title="默认关闭：严格一列从上往下读到底；勾选后：跨列合并的大格只读第1次">
+            <input id="chkDedupMerged" type="checkbox" class="accent-amber-500 rounded w-4 h-4" />
+            <span>合并单元格去重 <span class="text-[11px] text-slate-400">(默认关=直接一列读到底)</span></span>
+          </label>
+
+          <div class="flex items-center gap-1.5">
+            <span class="text-slate-400">语速:</span>
+            <input id="speechRateInput" type="range" min="0.8" max="1.8" step="0.1" value="1.2" class="w-16 accent-amber-500 cursor-pointer" />
+            <span id="speechRateLabel" class="font-mono font-bold text-amber-300">1.2x</span>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-between pt-1 border-t border-slate-800/80 text-[11px] text-slate-400">
+          <span>空格键功能：</span>
+          <select id="spacebarModeSelect" class="bg-slate-900 border border-slate-700 rounded px-2 py-0.5 text-slate-200 font-semibold">
+            <option value="toggleAuto" selected>按【空格键】= 自动连播 / 暂停 (推荐)</option>
+            <option value="nextCell">按【空格键】= 手动跳下一格 (回车键连播)</option>
+          </select>
+        </div>
+      </div>
+
+      </div>
+    </aside>
+
+    <!-- ==================== 右侧全高独立滚动大表区 (占 8/12) ==================== -->
+    <section class="order-1 lg:order-2 flex-1 min-h-[40dvh] lg:min-h-0 lg:col-span-8 xl:col-span-8 bg-slate-900 border-2 border-slate-800 rounded-2xl p-3.5 max-sm:p-2 flex flex-col gap-2.5 max-sm:gap-1.5 overflow-hidden shadow-2xl">
+      
+      <!-- 右侧顶部工具栏：多工作表切换 + 表格缩放 + 回到当前位置 -->
+      <div class="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-slate-800 shrink-0">
+        
+        <!-- 多工作表 (Sheet) 翻页器 -->
+        <div class="flex flex-wrap items-center gap-1.5 w-full xl:w-auto">
+          <button id="btnPrevSheet" class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs border border-slate-600 transition">
+            ⏮️ 上一表
+          </button>
+
+          <div id="sheetTabsBar" class="relative flex items-center gap-1 overflow-x-auto flex-1 min-w-[8rem] max-w-full sm:max-w-md xl:max-w-lg bg-slate-950 p-1 rounded-xl border border-slate-800">
+            <!-- JS 生成工作表标签 -->
+          </div>
+
+          <button id="btnNextSheet" class="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs transition shadow">
+            下一表 ⏭️
+          </button>
+
+          <span id="sheetCounterBadge" class="max-sm:hidden px-2 py-1 rounded-lg bg-amber-500/20 border border-amber-500/50 text-amber-300 font-black text-xs whitespace-nowrap max-w-[14rem] truncate">📑 第1/4表</span>
+
+          <label class="max-sm:hidden flex items-center gap-1 text-xs text-emerald-300 font-semibold cursor-pointer bg-slate-950 px-2 py-1 rounded-lg border border-slate-800">
+            <input id="chkAutoNextSheet" type="checkbox" checked class="accent-emerald-500 rounded" />
+            <span>抄完自动翻下一表</span>
+          </label>
+        </div>
+
+        <!-- 表格缩放控制条 + 回到当前播放位置按钮 -->
+        <div class="flex flex-wrap items-center gap-1.5 max-sm:gap-1 bg-slate-950 px-2.5 py-1 max-sm:px-1.5 max-sm:py-0.5 rounded-xl border border-slate-700 max-sm:w-full">
+          <button id="btnLocateCurrentRight" class="px-2.5 py-1 rounded-lg bg-blue-500 hover:bg-blue-400 text-slate-950 font-black text-xs transition shadow flex items-center gap-1" title="将画面回到当前播放的单元格并自动调成合适缩放比例">
+            🎯 回到当前播放位置
+          </button>
+          <span class="text-slate-600 max-sm:hidden">|</span>
+          <button id="btnZoomOut" class="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-white font-black text-xs">➖</button>
+          <input id="zoomSliderInput" type="range" min="35" max="140" step="5" value="100" class="max-sm:hidden w-20 accent-amber-500 cursor-pointer" />
+          <span id="zoomPercentLabel" class="text-xs font-mono font-black text-amber-300 w-10 text-center">100%</span>
+          <button id="btnZoomIn" class="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-white font-black text-xs">➕</button>
+          <button id="btnZoomFitAll" class="px-2 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-xs font-bold transition">
+            📐 看全表
+          </button>
+        </div>
+      </div>
+
+      <!-- 表格状态副标题条 -->
+      <div class="flex flex-wrap items-center justify-between gap-2 text-xs shrink-0">
+        <div class="flex flex-wrap items-center gap-2 max-sm:hidden">
+          <h3 id="currentTableTitle" class="text-sm font-bold text-white">表1：压实度（灌砂法）原始记录表</h3>
+          <span id="uploadStatusHint" class="px-2 py-0.5 rounded bg-rose-500/15 text-rose-300 border border-rose-500/30 font-semibold">
+            🔴 已锁定红字格（点击任意单元格可直接从该处开始读！）
+          </span>
+        </div>
+
+        <div class="flex items-center gap-2 max-sm:w-full max-sm:justify-end">
+          <button id="btnToggleRedBrushMode" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-rose-300 border border-rose-500/40 font-semibold transition">
+            🖌️ 点选增删红字格
+          </button>
+          <button id="btnResetProgress" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-semibold transition">
+            🔄 回到第 1 格
+          </button>
+        </div>
+      </div>
+
+      <!-- 手动增删红字提示条 -->
+      <div id="redBrushBanner" class="px-3 py-1.5 rounded-xl bg-rose-500/20 border border-rose-500/50 text-xs text-rose-200 font-bold hidden items-center justify-between shrink-0">
+        <span>🖌️ 【手动增删红字模式】：直接点击下方表格里的任意格子，即可设为【🔴红字播报格】或变回【黑字跳过格】！</span>
+        <button id="btnExitRedBrush" class="px-2.5 py-0.5 rounded-lg bg-rose-500 text-slate-950 font-black">完成设置</button>
+      </div>
+
+      <!-- 独立滚动的 1:1 表格视口（填满右侧剩余全部高度） -->
+      <div id="tableScrollViewport" class="flex-1 overflow-auto rounded-xl border border-slate-800 bg-slate-950 p-1 relative min-h-0">
+        <div id="zoomTableWrapper">
+          <table id="mainDataTable" class="w-full text-left border-collapse">
+            <thead id="tableHead" class="bg-slate-900 text-slate-300 text-xs border-b border-slate-800 sticky top-0 z-10"></thead>
+            <tbody id="tableBody" class="divide-y divide-slate-800/70 text-xs sm:text-sm font-mono"></tbody>
+          </table>
+        </div>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- 授权闸门：未授权/被停用时盖住整个软件 -->
+  <div id="licenseGate" class="fixed inset-0 z-[60] bg-slate-950 flex items-center justify-center p-5">
+    <div class="w-full max-w-sm bg-slate-900 border border-slate-700 rounded-2xl p-5 flex flex-col gap-3 shadow-2xl">
+      <h2 class="text-lg font-black text-white">🔐 请输入授权码</h2>
+      <p id="gateMsg" class="text-sm text-amber-300">正在验证授权…</p>
+      <input id="gateCodeInput" type="text" autocomplete="off" autocapitalize="characters" placeholder="作者发给你的授权码" class="w-full bg-slate-950 border border-slate-600 rounded-xl px-3 py-3 font-mono text-lg text-white uppercase text-center focus:outline-none focus:border-amber-500" />
+      <button id="gateSubmitBtn" class="w-full py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black">验证并进入</button>
+      <p class="text-[11px] text-slate-400">首次使用需联网验证；验证成功后，3 天内没信号也能继续使用。</p>
+    </div>
+  </div>
+
+  <!-- 弹窗：授权码生成器 & 水印设置 -->
+  <div id="modalAdminSettings" class="fixed inset-0 bg-slate-950/85 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-xl w-full p-5 flex flex-col gap-4 shadow-2xl">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <h3 class="text-base font-bold text-white">⚙️ 作者专属授权码生成器 & 顶部水印设置</h3>
+        <button id="btnCloseAdminModal" class="text-slate-400 hover:text-white text-sm px-2 py-1">✕ 关闭</button>
+      </div>
+
+      <div class="bg-slate-950 border border-emerald-500/40 rounded-xl p-4 space-y-2.5 text-xs sm:text-sm">
+        <div class="font-bold text-emerald-400">🔐 授权码生成器（生成后把整行粘贴进 licenses.json）</div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <input id="genName" type="text" placeholder="同事姓名" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white" />
+          <input id="genExpires" type="date" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white" title="到期日（可不填=长期有效）" />
+        </div>
+        <div class="flex gap-2">
+          <input id="genCode" type="text" placeholder="授权码（点右侧🎲随机生成）" class="flex-1 min-w-0 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 font-mono text-amber-300 uppercase" />
+          <button id="btnGenRandomCode" class="px-3 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-600">🎲</button>
+          <button id="btnGenLicenseLine" class="px-3 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs">生成</button>
+        </div>
+        <textarea id="genOutput" readonly rows="3" placeholder="生成的 licenses.json 记录会出现在这里（点击复制）" class="w-full bg-emerald-950/50 border border-emerald-500/50 rounded-lg px-3 py-2 font-mono text-[11px] text-amber-300 cursor-pointer"></textarea>
+        <p class="text-[11px] text-slate-400">名单里只存授权码的哈希值，别人看到 licenses.json 也读不出授权码。授权码本身请单独发给同事。</p>
+      </div>
+
+      <div class="space-y-2.5 bg-slate-950 p-4 rounded-xl border border-slate-800 text-xs sm:text-sm">
+        <div>
+          <label class="text-slate-400 block mb-1 text-xs">软件顶部标题：</label>
+          <input id="inputBrandTitle" type="text" value="工程检测·Excel红字语音速抄台" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-white" />
+        </div>
+        <div>
+          <label class="text-slate-400 block mb-1 text-xs">顶部防伪签名/微信号水印：</label>
+          <input id="inputWatermark" type="text" value="作者微信：RoadTest_AI ｜ 左侧固定操控台永不滚走 · 右侧表格独立缩放 · 语音读完再跳" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-amber-300" />
+        </div>
+        <div class="flex justify-end pt-1">
+          <button id="btnSaveBranding" class="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs sm:text-sm">
+            ✅ 保存水印设置
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast 提示 -->
+  <div id="toastBanner" class="fixed bottom-5 right-5 z-50 px-4 py-2.5 rounded-xl bg-emerald-500 text-slate-950 font-bold text-xs sm:text-sm shadow-xl transition-all duration-300 opacity-0 pointer-events-none translate-y-2">
+    操作成功
+  </div>
+
+  <script>
+    // ============================================================================
+    // 1. 内置多工作表红字演示数据
+    // ============================================================================
+    function createPresetSheet(key) {
+      if (key === 'compaction_merged') {
+        const grid = [
+          ["市政道路工程压实度（灌砂法）试验检测原始记录表", "", "", "", "", "", "", ""],
+          ["工程名称：迎宾大道改造工程", "", "", "施工部位：K0+020~K0+080 路床顶面", "", "", "试验日期：2026-10-31", ""],
+          ["检测项目大类", "分项名称及代号", "测点1 (C列)", "测点1 (D列)", "测点2 (E列)", "测点2 (F列)", "测点3 (G列)", "测点3 (H列)"],
+          ["取样桩号及部位", "桩号", "K0+020左", "K0+020左", "K0+040右", "K0+040右", "K0+060左", "K0+060左"],
+          ["灌砂法现场称量", "灌砂筒+砂原始质量 m1 (g)", "5210", "5210", "5210", "5210", "5210", "5210"],
+          ["灌砂法现场称量", "灌砂后筒+剩余砂质量 m4 (g)", "1842", "1842", "1815", "1815", "1860", "1860"],
+          ["灌砂法现场称量", "试坑挖出湿土总质量 mp (g)", "4985", "4985", "5012", "5012", "4960", "4960"],
+          ["灌砂法现场称量", "湿密度 ρw (g/cm³)", "2.34", "2.34", "2.32", "2.32", "2.35", "2.35"],
+          ["含水率平行试验", "铝盒盒号", "A-11", "A-12", "B-05", "B-06", "C-09", "C-10"],
+          ["含水率平行试验", "盒 + 湿土质量 (g)", "148.6", "152.3", "145.2", "149.8", "151.0", "147.4"],
+          ["含水率平行试验", "盒 + 干土质量 (g)", "142.2", "145.6", "139.2", "143.5", "144.3", "141.0"],
+          ["含水率平行试验", "单盒含水率 ωi (%)", "5.3", "5.5", "5.1", "5.3", "5.5", "5.5"],
+          ["含水率平行试验", "平均含水率 ω (%)", "5.4", "5.4", "5.2", "5.2", "5.5", "5.5"],
+          ["综合评定计算", "不适用空行(黑字斜杠自动跳过)", "/", "/", "/", "/", "/", "/"],
+          ["综合评定计算", "实测干密度 ρd (g/cm³)", "2.22", "2.22", "2.21", "2.21", "2.23", "2.23"],
+          ["综合评定计算", "实测压实度 K (%)", "97.4", "97.4", "96.9", "96.9", "97.8", "97.8"],
+          ["综合评定计算", "单点评定结论", "合格", "合格", "合格", "合格", "合格", "合格"]
+        ];
+        const merges = [
+          { s: { r: 0, c: 0 }, e: { r: 0, c: 7 } },
+          { s: { r: 1, c: 0 }, e: { r: 1, c: 2 } },
+          { s: { r: 1, c: 3 }, e: { r: 1, c: 5 } },
+          { s: { r: 1, c: 6 }, e: { r: 1, c: 7 } },
+          { s: { r: 4, c: 0 }, e: { r: 7, c: 0 } },
+          { s: { r: 8, c: 0 }, e: { r: 12, c: 0 } },
+          { s: { r: 13, c: 0 }, e: { r: 16, c: 0 } },
+          ...[3, 4, 5, 6, 7, 12, 13, 14, 15, 16].flatMap(r => [
+            { s: { r, c: 2 }, e: { r, c: 3 } },
+            { s: { r, c: 4 }, e: { r, c: 5 } },
+            { s: { r, c: 6 }, e: { r, c: 7 } }
+          ])
+        ];
+        // In real Excel, merged follower cells are empty; only the top-left cell of a merge holds the value
+        [3, 4, 5, 6, 7, 12, 13, 14, 15, 16].forEach(r => {
+          grid[r][3] = "";
+          grid[r][5] = "";
+          grid[r][7] = "";
+        });
+        const redCells = [];
+        for (let r = 3; r <= 16; r++) {
+          if (r === 13) continue;
+          for (let c = 2; c <= 7; c++) {
+            if ([3, 4, 5, 6, 7, 12, 13, 14, 15, 16].includes(r) && (c === 3 || c === 5 || c === 7)) continue;
+            redCells.push(`${r}_${c}`);
+          }
+        }
+        return {
+          name: "表1-压实度(灌砂法)",
+          title: "表1：压实度（灌砂法）原始记录表",
+          grid,
+          merges,
+          redCells
+        };
+      }
+
+      if (key === 'deflection') {
+        const grid = [
+          ["路基路面回弹弯沉（贝克曼梁法）测试原始记录表", "", "", "", "", ""],
+          ["测试项目", "测点 1", "测点 2", "测点 3", "测点 4", "测点 5"],
+          ["测点桩号及车道", "K1+200左", "K1+220右", "K1+240左", "K1+260右", "K1+280左"],
+          ["左轮百分表初读数 d0", "64", "59", "71", "55", "68"],
+          ["左轮百分表终读数 d1", "53", "49", "59", "46", "57"],
+          ["左轮回弹弯沉值 (0.01mm)", "22", "20", "24", "18", "22"],
+          ["温度修正值 (黑字不报)", "/", "/", "/", "/", "/"],
+          ["右轮百分表初读数 d0", "58", "62", "65", "60", "63"],
+          ["右轮百分表终读数 d1", "46", "51", "54", "50", "51"],
+          ["右轮回弹弯沉值 (0.01mm)", "24", "22", "22", "20", "24"]
+        ];
+        const redCells = [];
+        for (let r = 2; r <= 9; r++) {
+          if (r === 6) continue;
+          for (let c = 1; c <= 5; c++) redCells.push(`${r}_${c}`);
+        }
+        return {
+          name: "表2-贝克曼梁弯沉",
+          title: "表2：贝克曼梁弯沉测试原始记录表",
+          grid,
+          merges: [{ s: { r: 0, c: 0 }, e: { r: 0, c: 5 } }],
+          redCells
+        };
+      }
+
+      if (key === 'core') {
+        const grid = [
+          ["沥青面层钻芯取样厚度与压实度原始记录表", "", "", "", ""],
+          ["检测项目", "芯样 #1", "芯样 #2", "芯样 #3", "芯样 #4"],
+          ["取样桩号及位置", "K0+150左", "K0+350右", "K0+550左", "K0+750右"],
+          ["实测厚度平均值 (mm)", "42", "41", "43", "40"],
+          ["干燥芯样空中质量 (g)", "1185.4", "1162.8", "1204.2", "1148.0"],
+          ["芯样水中质量 (g)", "694.0", "677.9", "706.6", "667.9"],
+          ["表干芯样空中质量 (g)", "1186.2", "1163.5", "1205.0", "1148.8"],
+          ["毛体积相对密度 (g/cm³)", "2.408", "2.395", "2.416", "2.388"],
+          ["实测压实度 (%)", "98.4", "97.9", "98.8", "97.6"],
+          ["芯样外观描述", "密实完整", "密实完整", "密实完整", "密实完整"]
+        ];
+        const redCells = [];
+        for (let r = 2; r <= 9; r++) {
+          for (let c = 1; c <= 4; c++) redCells.push(`${r}_${c}`);
+        }
+        return {
+          name: "表3-沥青钻芯",
+          title: "表3：沥青面层钻芯厚度与压实度记录表",
+          grid,
+          merges: [{ s: { r: 0, c: 0 }, e: { r: 0, c: 4 } }],
+          redCells
+        };
+      }
+
+      const grid = [
+        ["标准养护室与试验室日常温湿度记录台账", "", "", "", ""],
+        ["记录项目", "10月20日", "10月21日", "10月22日", "10月23日"],
+        ["上午记录时间", "08:30", "08:30", "08:30", "08:30"],
+        ["上午标养室温度 (℃)", "20.2", "20.1", "19.8", "20.0"],
+        ["上午相对湿度 (%)", "96", "97", "96", "96"],
+        ["下午记录时间", "16:30", "16:30", "16:30", "16:30"],
+        ["下午标养室温度 (℃)", "20.6", "20.4", "20.3", "20.5"],
+        ["下午相对湿度 (%)", "96", "96", "97", "96"],
+        ["温控设备运转状态", "正常", "正常", "正常", "正常"]
+      ];
+      const redCells = [];
+      for (let r = 2; r <= 8; r++) {
+        for (let c = 1; c <= 4; c++) redCells.push(`${r}_${c}`);
+      }
+      return {
+        name: "表4-温湿度台账",
+        title: "表4：试验室日常温湿度记录台账",
+        grid,
+        merges: [{ s: { r: 0, c: 0 }, e: { r: 0, c: 4 } }],
+        redCells
+      };
+    }
+
+    // ============================================================================
+    // 2. 工程短口令与电报读数转换
+    // ============================================================================
+    const SHORT_TERM_RULES = [
+      { match: /桩号|部位|位置/, short: "桩号" },
+      { match: /原始质量|筒\+砂原/, short: "筒加砂" },
+      { match: /剩余砂|筒\+剩余/, short: "剩余砂" },
+      { match: /湿土总质量|挖出湿土/, short: "坑湿土" },
+      { match: /湿密度/, short: "湿密度" },
+      { match: /盒号/, short: "盒号" },
+      { match: /盒\s*\+\s*湿土|盒加湿土/, short: "盒湿土" },
+      { match: /盒\s*\+\s*干土|盒加干土/, short: "盒干土" },
+      { match: /单盒含水率/, short: "单含水" },
+      { match: /平均含水率|含水率/, short: "含水率" },
+      { match: /干密度/, short: "干密度" },
+      { match: /压实度/, short: "压实度" },
+      { match: /初读数/, short: "初读数" },
+      { match: /终读数/, short: "终读数" },
+      { match: /弯沉值/, short: "弯沉" },
+      { match: /实测厚度|厚度/, short: "厚度" },
+      { match: /空中质量.*表干|表干/, short: "表干重" },
+      { match: /空中质量|干重/, short: "空中重" },
+      { match: /水中质量|水重/, short: "水中重" },
+      { match: /毛体积/, short: "毛密度" },
+      { match: /外观描述|外观/, short: "外观" },
+      { match: /结论|评定/, short: "结论" },
+      { match: /上午.*温度/, short: "上午温度" },
+      { match: /上午.*湿度/, short: "上午湿度" },
+      { match: /下午.*温度/, short: "下午温度" },
+      { match: /下午.*湿度/, short: "下午湿度" }
+    ];
+
+    function toEngineeringShortTerm(rawLabel) {
+      let clean = String(rawLabel || '').trim();
+      for (const rule of SHORT_TERM_RULES) {
+        if (rule.match.test(clean)) {
+          clean = rule.short;
+          break;
+        }
+      }
+      if (clean === String(rawLabel || '').trim()) {
+        clean = clean
+          .replace(/（.*?）|\(.*?\)|\[.*?\]/g, '')
+          .replace(/[a-zA-Z0-9ργω±≥≤/%℃._-]+/g, '')
+          .replace(/[·、，,：:\s+]+/g, '')
+          .slice(-4);
+      }
+      return clean || "红字";
+    }
+
+    function toTelegraphNumberSpeech(valStr) {
+      const str = String(valStr || '').trim();
+      const digitMap = {
+        '0': '零', '1': '一', '2': '二', '3': '三', '4': '四',
+        '5': '五', '6': '六', '7': '七', '8': '八', '9': '九',
+        '.': '点', '+': '加'
+      };
+      if (/^[Kk]?\d+[+.]?\d*.*$/.test(str)) {
+        return str.split('').map(ch => digitMap[ch] !== undefined ? digitMap[ch] : ch).join('');
+      }
+      return str;
+    }
+
+    // ============================================================================
+    // 3. 全局状态与防抢跳唯一语音令牌 (speechSessionToken)
+    // ============================================================================
+    let workbookSheets = [];
+    let currentSheetIndex = 0;
+
+    let currentTableName = "";
+    let sheetGrid = [];
+    let sheetMerges = [];
+    let redCellSet = new Set();
+    let mergeLeaderMap = {};
+    let mergeFollowerToLeader = {};
+
+    let isRedBrushMode = false;
+    let currentZoomPercent = 100;
+
+    let sequenceList = [];
+    let currentIndex = 0;
+
+    // 关键修复 Bug #5：全局递增的语音会话令牌！
+    // 任何时候手动切格、点选单元格、按下一格，都会让 speechSessionToken++，
+    // 从而使上一段被 cancel() 的旧语音回调彻底失效，绝不产生双倍加速定时器！
+    let turboMultiplier = 1;
+    let msPerChar = 250;
+    let speechSessionToken = 0;
+    let isAutoPlaying = false;
+    let postSpeechTimer = null;
+    let countdownAnimTimer = null;
+    let speechFallbackTimer = null;
+    let audioCtx = null;
+
+    let localDeviceCode = "RD-7492";
+
+    // ============================================================================
+    // 4. 多工作表切换与合并单元格映射
+    // ============================================================================
+    function loadMultiSheetPreset(presetKey) {
+      stopAutoPlay();
+      if (presetKey === 'road_multi_workbook') {
+        workbookSheets = [
+          createPresetSheet('compaction_merged'),
+          createPresetSheet('deflection'),
+          createPresetSheet('core'),
+          createPresetSheet('env')
+        ];
+      } else {
+        workbookSheets = [createPresetSheet(presetKey)];
+      }
+      workbookSheets.forEach(s => {
+        s.redCellSet = new Set(s.redCells || []);
+      });
+      switchToSheetIndex(0, false);
+    }
+
+    function switchToSheetIndex(idx, autoSpeakFirst = true) {
+      if (!workbookSheets.length || idx < 0 || idx >= workbookSheets.length) return;
+      currentSheetIndex = idx;
+      const activeSheet = workbookSheets[currentSheetIndex];
+
+      currentTableName = activeSheet.title || activeSheet.name;
+      sheetGrid = activeSheet.grid.map(r => [...r]);
+      sheetMerges = JSON.parse(JSON.stringify(activeSheet.merges || []));
+      redCellSet = activeSheet.redCellSet;
+
+      rebuildMergeMaps();
+      currentIndex = 0;
+      renderSheetTabsBar();
+      renderDictationTable(true);
+      if (autoSpeakFirst) {
+        speakCurrentCell(true);
+      }
+    }
+
+    function renderSheetTabsBar() {
+      const total = workbookSheets.length;
+      document.getElementById('sheetCounterBadge').textContent = `📑 第${currentSheetIndex + 1}/${total}表：${workbookSheets[currentSheetIndex] ? workbookSheets[currentSheetIndex].name : ''}`;
+      const activeSheet = workbookSheets[currentSheetIndex];
+      document.getElementById('hudSheetBadge').textContent = activeSheet ? `第${currentSheetIndex + 1}/${total}表·${activeSheet.name}` : '当前表';
+
+      const bar = document.getElementById('sheetTabsBar');
+      let html = '';
+      workbookSheets.forEach((s, i) => {
+        const isCurrent = i === currentSheetIndex;
+        const redCount = s.redCellSet ? s.redCellSet.size : 0;
+        html += `<button class="sheet-tab-item px-2.5 py-1 rounded-lg text-xs font-bold whitespace-nowrap transition ${isCurrent ? 'bg-amber-500 text-slate-950 shadow' : 'text-slate-300 hover:bg-slate-800'}" data-sheet-idx="${i}">
+          ${i + 1}. ${s.name} <span class="text-[10px] ${isCurrent ? 'text-slate-900' : 'text-rose-400'}">(🔴${redCount})</span>
+        </button>`;
+      });
+      bar.innerHTML = html;
+      requestAnimationFrame(() => {
+        const act = bar.querySelectorAll('.sheet-tab-item')[currentSheetIndex];
+        if (act) {
+          bar.scrollTo({ left: act.offsetLeft - bar.clientWidth / 2 + act.offsetWidth / 2, behavior: 'smooth' });
+        }
+      });
+
+      bar.querySelectorAll('.sheet-tab-item').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const idx = parseInt(btn.getAttribute('data-sheet-idx'), 10);
+          stopAutoPlay();
+          switchToSheetIndex(idx, true);
+          showToast(`📑 已切换到工作表：【${workbookSheets[idx].name}】`);
+        });
+      });
+    }
+
+    function rebuildMergeMaps() {
+      mergeLeaderMap = {};
+      mergeFollowerToLeader = {};
+      (sheetMerges || []).forEach(m => {
+        const r1 = m.s.r, c1 = m.s.c;
+        const r2 = m.e.r, c2 = m.e.c;
+        if (r1 < 0 || c1 < 0 || r1 >= sheetGrid.length) return;
+        const colspan = c2 - c1 + 1;
+        const rowspan = r2 - r1 + 1;
+        if (colspan > 1 || rowspan > 1) {
+          mergeLeaderMap[`${r1}_${c1}`] = { colspan, rowspan, endR: r2, endC: c2 };
+          // If any cell inside the merged block was marked red in Excel, ensure the top-left leader cell is marked red,
+          // and remove follower coordinates from redCellSet so a merged cell is NEVER split into 2 columns!
+          let anyRedInMerge = redCellSet.has(`${r1}_${c1}`);
+          for (let rr = r1; rr <= r2; rr++) {
+            for (let cc = c1; cc <= c2; cc++) {
+              if (redCellSet.has(`${rr}_${cc}`)) anyRedInMerge = true;
+            }
+          }
+          if (anyRedInMerge) {
+            redCellSet.add(`${r1}_${c1}`);
+          }
+          for (let rr = r1; rr <= r2; rr++) {
+            for (let cc = c1; cc <= c2; cc++) {
+              if (rr === r1 && cc === c1) continue;
+              mergeFollowerToLeader[`${rr}_${cc}`] = `${r1}_${c1}`;
+              redCellSet.delete(`${rr}_${cc}`);
+            }
+          }
+        }
+      });
+    }
+
+    // ============================================================================
+    // 5. 深度解析 .xlsx 红色字体单元格 (JSZip XML 穿透 + SheetJS)
+    // ============================================================================
+    function isHexColorReddish(hexStr) {
+      if (!hexStr) return false;
+      let clean = String(hexStr).replace(/^#/, '').trim().toUpperCase();
+      if (clean.length === 8) clean = clean.slice(2);
+      if (clean.length !== 6) return false;
+      const r = parseInt(clean.slice(0, 2), 16);
+      const g = parseInt(clean.slice(2, 4), 16);
+      const b = parseInt(clean.slice(4, 6), 16);
+      if (isNaN(r) || isNaN(g) || isNaN(b)) return false;
+      return r >= 150 && r > g * 1.45 && r > b * 1.45;
+    }
+
+    async function extractRedCellsFromXlsxBuffer(arrayBuffer, wb) {
+      const sheetRedMap = {};
+      (wb.SheetNames || []).forEach(name => { sheetRedMap[name] = new Set(); });
+
+      (wb.SheetNames || []).forEach(name => {
+        const ws = wb.Sheets[name];
+        if (!ws) return;
+        Object.keys(ws).forEach(addr => {
+          if (addr.startsWith('!')) return;
+          const cell = ws[addr];
+          const rgb = cell && cell.s && cell.s.font && cell.s.font.color && cell.s.font.color.rgb;
+          if (rgb && isHexColorReddish(rgb)) {
+            const decoded = XLSX.utils.decode_cell(addr);
+            sheetRedMap[name].add(`${decoded.r}_${decoded.c}`);
+          }
+        });
+      });
+
+      if (typeof JSZip !== 'undefined') {
+        try {
+          const zip = await JSZip.loadAsync(arrayBuffer);
+          const stylesXmlFile = zip.file('xl/styles.xml');
+          const redFontIndices = new Set();
+          const redXfIndices = new Set();
+
+          if (stylesXmlFile) {
+            const stylesText = await stylesXmlFile.async('string');
+            const parser = new DOMParser();
+            const xmlDoc = parser.parseFromString(stylesText, 'application/xml');
+
+            xmlDoc.querySelectorAll('fonts > font').forEach((fontEl, fIdx) => {
+              const colorEl = fontEl.querySelector('color');
+              if (colorEl && isHexColorReddish(colorEl.getAttribute('rgb'))) {
+                redFontIndices.add(fIdx);
+              }
+            });
+
+            xmlDoc.querySelectorAll('cellXfs > xf').forEach((xfEl, xfIdx) => {
+              const fontId = parseInt(xfEl.getAttribute('fontId') || '-1', 10);
+              if (redFontIndices.has(fontId)) {
+                redXfIndices.add(xfIdx);
+              }
+            });
+          }
+
+          const redSharedStringIndices = new Set();
+          const sstFile = zip.file('xl/sharedStrings.xml');
+          if (sstFile) {
+            const sstText = await sstFile.async('string');
+            const parser = new DOMParser();
+            const sstDoc = parser.parseFromString(sstText, 'application/xml');
+            sstDoc.querySelectorAll('si').forEach((siEl, sIdx) => {
+              siEl.querySelectorAll('color').forEach(cEl => {
+                if (isHexColorReddish(cEl.getAttribute('rgb'))) {
+                  redSharedStringIndices.add(sIdx);
+                }
+              });
+            });
+          }
+
+          for (let i = 0; i < wb.SheetNames.length; i++) {
+            const sName = wb.SheetNames[i];
+            const wsFile = zip.file(`xl/worksheets/sheet${i + 1}.xml`);
+            if (!wsFile) continue;
+            const wsText = await wsFile.async('string');
+            const parser = new DOMParser();
+            const wsDoc = parser.parseFromString(wsText, 'application/xml');
+
+            wsDoc.querySelectorAll('c').forEach(cEl => {
+              const ref = cEl.getAttribute('r');
+              if (!ref) return;
+              const styleIdx = parseInt(cEl.getAttribute('s') || '-1', 10);
+              const tAttr = cEl.getAttribute('t');
+              const vNode = cEl.querySelector('v');
+              const valStr = vNode ? vNode.textContent : '';
+
+              let isRed = false;
+              if (redXfIndices.has(styleIdx)) {
+                isRed = true;
+              } else if (tAttr === 's' && valStr !== '' && redSharedStringIndices.has(parseInt(valStr, 10))) {
+                isRed = true;
+              } else {
+                const inlineColor = cEl.querySelector('color');
+                if (inlineColor && isHexColorReddish(inlineColor.getAttribute('rgb'))) {
+                  isRed = true;
+                }
+              }
+
+              if (isRed) {
+                const decoded = XLSX.utils.decode_cell(ref);
+                sheetRedMap[sName].add(`${decoded.r}_${decoded.c}`);
+              }
+            });
+          }
+        } catch (e) {}
+      }
+      return sheetRedMap;
+    }
+
+    // ============================================================================
+    // 6. 构建播报队列（修复第3条：默认不开启合并去重，严格一列从上往下直读到底！）
+    // ============================================================================
+    function isValueEmptyOrSlash(val) {
+      const s = String(val ?? '').trim();
+      return s === '' || s === '/' || s === '-' || s === '—' || s === '无';
+    }
+
+    function getLeftBlackLabelForCell(r, targetCol) {
+      const candidates = [];
+      for (let c = 0; c < targetCol; c++) {
+        if (redCellSet.has(`${r}_${c}`)) continue;
+        const val = String((sheetGrid[r] && sheetGrid[r][c]) || '').trim();
+        if (!val) continue;
+        if (/^(g|kg|mm|cm|MPa|kPa|%|℃|0\.01mm|g\/cm³|g\/cm3)$/i.test(val)) continue;
+        candidates.push(val);
+      }
+      return candidates.length ? candidates[candidates.length - 1] : `第${r + 1}行`;
+    }
+
+    function getTopBlackHeaderForCell(targetRow, c) {
+      const colLetter = String.fromCharCode(65 + (c % 26));
+      for (let r = targetRow - 1; r >= 0; r--) {
+        if (redCellSet.has(`${r}_${c}`)) continue;
+        const val = String((sheetGrid[r] && sheetGrid[r][c]) || '').trim();
+        if (val && !/工程名称|施工部位|试验规程|原始记录表/.test(val)) {
+          return val;
+        }
+      }
+      return `${colLetter}列`;
+    }
+
+    function buildSequence() {
+      const order = document.getElementById('traversalOrderSelect').value;
+      const dedupMerged = document.getElementById('chkDedupMerged').checked; // 默认 false (直接一列读下去)
+      const numRows = sheetGrid.length;
+      const numCols = numRows ? sheetGrid[0].length : 0;
+
+      sequenceList = [];
+
+      function shouldIncludeCell(r, c) {
+        const val = String((sheetGrid[r] && sheetGrid[r][c]) ?? '').trim();
+        if (isValueEmptyOrSlash(val)) return false;
+        return redCellSet.has(`${r}_${c}`);
+      }
+
+      if (order === 'col') {
+        // 严格按单列 (c = 0, 1, 2...) 从上往下 (r = 0..numRows-1) 逐格直读！
+        // 已经被合并进左边/上边主格的副格 (mergeFollowerToLeader) 本身不是独立单元格，始终跳过，绝不拆分成两列！
+        for (let c = 0; c < numCols; c++) {
+          let isFirstInCol = true;
+          for (let r = 0; r < numRows; r++) {
+            if (mergeFollowerToLeader[`${r}_${c}`]) continue;
+            if (!shouldIncludeCell(r, c)) continue;
+
+            const rawRowLabel = getLeftBlackLabelForCell(r, c);
+            const colHeader = getTopBlackHeaderForCell(r, c);
+            sequenceList.push({
+              r,
+              c,
+              rowLabel: rawRowLabel,
+              shortLabel: toEngineeringShortTerm(rawRowLabel),
+              colLabel: colHeader,
+              value: String(sheetGrid[r][c]).trim(),
+              isNewColOrRow: isFirstInCol
+            });
+            isFirstInCol = false;
+          }
+        }
+      } else {
+        // 按行从左往右直读
+        for (let r = 0; r < numRows; r++) {
+          let isFirstInRow = true;
+          for (let c = 0; c < numCols; c++) {
+            if (mergeFollowerToLeader[`${r}_${c}`]) continue;
+            if (!shouldIncludeCell(r, c)) continue;
+
+            const rawRowLabel = getLeftBlackLabelForCell(r, c);
+            const colHeader = getTopBlackHeaderForCell(r, c);
+            sequenceList.push({
+              r,
+              c,
+              rowLabel: rawRowLabel,
+              shortLabel: toEngineeringShortTerm(rawRowLabel),
+              colLabel: colHeader,
+              value: String(sheetGrid[r][c]).trim(),
+              isNewColOrRow: isFirstInRow
+            });
+            isFirstInRow = false;
+          }
+        }
+      }
+
+      if (currentIndex >= sequenceList.length) {
+        currentIndex = 0;
+      }
+    }
+
+    // ============================================================================
+    // 7. 表格缩放、回到当前播放位置 (自动适屏缩放+丝滑居中) 与渲染
+    // ============================================================================
+    function applyTableZoom(percent) {
+      currentZoomPercent = Math.max(35, Math.min(140, Math.round(percent)));
+      document.getElementById('zoomSliderInput').value = currentZoomPercent;
+      document.getElementById('zoomPercentLabel').textContent = `${currentZoomPercent}%`;
+
+      const wrapper = document.getElementById('zoomTableWrapper');
+      const scale = currentZoomPercent / 100;
+      wrapper.style.transform = `scale(${scale})`;
+      wrapper.style.width = `${100 / scale}%`;
+    }
+
+    function zoomToFitWholeTable() {
+      const viewport = document.getElementById('tableScrollViewport');
+      const table = document.getElementById('mainDataTable');
+      if (!viewport || !table) return;
+
+      const wrapper = document.getElementById('zoomTableWrapper');
+      wrapper.style.transform = 'scale(1)';
+      wrapper.style.width = '100%';
+
+      const naturalW = table.scrollWidth || 900;
+      const naturalH = table.scrollHeight || 500;
+      const availW = viewport.clientWidth - 16;
+      const availH = viewport.clientHeight - 16;
+
+      const scaleW = (availW / naturalW) * 100;
+      const scaleH = (availH / naturalH) * 100;
+      const bestPct = Math.max(35, Math.min(100, Math.floor(Math.min(scaleW, scaleH))));
+      applyTableZoom(bestPct);
+      showToast(`📐 已缩放到 ${bestPct}%，一屏看清整张表格！`);
+    }
+
+    // 关键升级 #1：画面回到当前播放位置，且自动调成最合适的可读缩放大小！
+    function focusAndZoomToActiveCell(showNotification = true) {
+      const viewport = document.getElementById('tableScrollViewport');
+      const table = document.getElementById('mainDataTable');
+      if (!viewport || !table) return;
+
+      // 计算最舒适看清当前区域数据的缩放比例（根据列宽自适应 85% ~ 105%）
+      const wrapper = document.getElementById('zoomTableWrapper');
+      wrapper.style.transform = 'scale(1)';
+      wrapper.style.width = '100%';
+      const naturalW = table.scrollWidth || 800;
+      const availW = viewport.clientWidth - 20;
+      // 保证字体足够清晰可读（最低不低于 85%，宽表取 90%~100%）
+      let comfortableZoom = Math.round((availW / naturalW) * 100);
+      comfortableZoom = Math.max(85, Math.min(105, comfortableZoom));
+      applyTableZoom(comfortableZoom);
+
+      setTimeout(() => {
+        const activeTd = table.querySelector('td.crosshair-active');
+        if (activeTd) {
+          activeTd.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+        }
+        if (showNotification) {
+          showToast(`🎯 已定位到当前播放格，并调至最佳阅读比例 (${comfortableZoom}%)！`);
+        }
+      }, 60);
+    }
+
+    // 日常跳格时轻柔自动跟随视野（不改变用户当前缩放，只确保高亮格在视野内）
+    function scrollActiveCellIntoViewGentle() {
+      const table = document.getElementById('mainDataTable');
+      if (!table) return;
+      const activeTd = table.querySelector('td.crosshair-active');
+      if (activeTd) {
+        activeTd.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+      }
+    }
+
+    function renderDictationTable(autoScroll = true) {
+      buildSequence();
+      const activeItem = sequenceList[currentIndex] || {
+        r: 0, c: 0, value: '无红字', rowLabel: '-', shortLabel: '-', colLabel: '-'
+      };
+
+      const dedupMerged = document.getElementById('chkDedupMerged').checked;
+
+      document.getElementById('currentTableTitle').textContent = currentTableName;
+      document.getElementById('uploadStatusHint').textContent =
+        `🔴 共 ${sequenceList.length} 个待读红字格（点击表中任意格可立刻从该格开始读）`;
+
+      const numRows = sheetGrid.length;
+      const numCols = numRows ? sheetGrid[0].length : 0;
+
+      const thead = document.getElementById('tableHead');
+      let headHtml = `<tr><th class="p-2 border-r border-slate-800 text-slate-400 w-12 text-center">行</th>`;
+      for (let c = 0; c < numCols; c++) {
+        const colLetter = String.fromCharCode(65 + (c % 26));
+        const isActiveCol = c === activeItem.c;
+        headHtml += `<th class="p-2 border-r border-slate-800 text-center ${isActiveCol ? 'bg-amber-500/20 text-amber-300 font-extrabold' : 'text-slate-400'}">
+          ${colLetter}列
+        </th>`;
+      }
+      headHtml += `</tr>`;
+      thead.innerHTML = headHtml;
+
+      const seqMap = {};
+      sequenceList.forEach((item, idx) => {
+        seqMap[`${item.r}_${item.c}`] = idx;
+      });
+
+      const tbody = document.getElementById('tableBody');
+      let bodyHtml = '';
+
+      for (let r = 0; r < numRows; r++) {
+        const isActiveRow = r === activeItem.r;
+        bodyHtml += `<tr class="${isActiveRow ? 'crosshair-row' : 'hover:bg-slate-900/40'}">`;
+        bodyHtml += `<td class="p-1.5 border-r border-slate-800 text-xs text-center font-mono ${isActiveRow ? 'text-amber-400 font-bold' : 'text-slate-500'}">
+          #${r + 1}
+        </td>`;
+
+        for (let c = 0; c < numCols; c++) {
+          // 始终 100% 保持 Excel 原有的合并单元格结构 (colspan / rowspan)，绝不把合并单元格拆成未合并的多列！
+          if (mergeFollowerToLeader[`${r}_${c}`]) {
+            continue;
+          }
+
+          const isRed = redCellSet.has(`${r}_${c}`);
+          const spanInfo = mergeLeaderMap[`${r}_${c}`];
+          let spanAttrs = '';
+          if (spanInfo) {
+            if (spanInfo.colspan > 1) spanAttrs += ` colspan="${spanInfo.colspan}" `;
+            if (spanInfo.rowspan > 1) spanAttrs += ` rowspan="${spanInfo.rowspan}" `;
+          }
+
+          const cellVal = sheetGrid[r][c] ?? '';
+          const seqIdx = seqMap[`${r}_${c}`];
+          const isCurrent = seqIdx !== undefined && seqIdx === currentIndex;
+          const isDone = seqIdx !== undefined && seqIdx < currentIndex;
+          const isActiveCol = c === activeItem.c;
+
+          let cellClass = 'p-2 border-r border-b border-slate-800/80 transition cursor-pointer ';
+          if (isCurrent) {
+            cellClass += 'crosshair-active text-center ';
+          } else if (isDone) {
+            cellClass += 'cell-red-done text-center ';
+          } else if (isRed) {
+            cellClass += `cell-red-target text-center ${isActiveCol ? 'crosshair-col' : ''} `;
+          } else {
+            cellClass += 'cell-black-fixed text-xs ';
+          }
+
+          const seqAttr = seqIdx !== undefined ? `data-seq-index="${seqIdx}"` : '';
+          bodyHtml += `<td ${spanAttrs} class="${cellClass}" data-r="${r}" data-c="${c}" ${seqAttr}>
+            <div class="flex items-center ${isRed ? 'justify-center' : 'justify-between'} gap-1">
+              <span>${cellVal}</span>
+              ${isCurrent ? '<span class="text-xs">👈当前</span>' : (isDone ? '<span class="text-[10px] text-emerald-400">✓</span>' : '')}
+            </div>
+          </td>`;
+        }
+        bodyHtml += `</tr>`;
+      }
+
+      tbody.innerHTML = bodyHtml;
+
+      // 点击单元格：立刻定位并重置语音令牌（彻底解决点击单元格后自动播放变快乱跳的 Bug #5！）
+      tbody.querySelectorAll('td[data-r]').forEach(td => {
+        td.addEventListener('click', () => {
+          const r = parseInt(td.getAttribute('data-r'), 10);
+          const c = parseInt(td.getAttribute('data-c'), 10);
+          const key = `${r}_${c}`;
+
+          if (isRedBrushMode) {
+            const spanInfo = mergeLeaderMap[key];
+            const shouldAdd = !redCellSet.has(key);
+            const toggleCoord = (rr, cc) => {
+              if (shouldAdd) redCellSet.add(`${rr}_${cc}`);
+              else redCellSet.delete(`${rr}_${cc}`);
+            };
+            if (spanInfo) {
+              for (let rr = r; rr <= spanInfo.endR; rr++) {
+                for (let cc = c; cc <= spanInfo.endC; cc++) toggleCoord(rr, cc);
+              }
+            } else {
+              toggleCoord(r, c);
+            }
+            renderSheetTabsBar();
+            renderDictationTable(false);
+            return;
+          }
+
+          const seqIdxAttr = td.getAttribute('data-seq-index');
+          if (seqIdxAttr !== null && seqIdxAttr !== '') {
+            jumpToSequenceIndex(parseInt(seqIdxAttr, 10));
+          } else {
+            redCellSet.add(key);
+            rebuildMergeMaps();
+            renderSheetTabsBar();
+            buildSequence();
+            const foundIdx = sequenceList.findIndex(item => item.r === r && item.c === c);
+            jumpToSequenceIndex(foundIdx !== -1 ? foundIdx : 0);
+            showToast(`🔴 已将该格设为红字并直接从此处开始播报！`);
+          }
+        });
+      });
+
+      document.getElementById('hudColBadge').textContent = `${activeItem.colLabel}`;
+      document.getElementById('hudRowBadge').textContent = `项目：${activeItem.shortLabel}`;
+      document.getElementById('hudMainValue').textContent = activeItem.value;
+      document.getElementById('hudSpokenPreview').textContent = `🔊 播报：“${composeSpeechForItem(activeItem)}”`;
+
+      const total = sequenceList.length || 1;
+      document.getElementById('hudProgressText').textContent = sequenceList.length ? `${currentIndex + 1} / ${total}` : `0 / 0`;
+
+      const prevEl = document.getElementById('hudPrevList');
+      if (prevEl) {
+        const escH = (t) => String(t).replace(/[&<>"]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]));
+        let ph = '';
+        for (let k = 1; k <= 3; k++) {
+          const it = sequenceList[currentIndex - k];
+          if (!it) break;
+          const colTag = it.c !== activeItem.c ? `[${String.fromCharCode(65 + (it.c % 26))}列] ` : '';
+          ph += `<button type="button" data-prev-idx="${currentIndex - k}" class="prev-item text-left truncate rounded px-1.5 py-0.5 text-xs font-bold bg-slate-800 hover:bg-slate-700 border border-slate-700 ${k === 1 ? 'text-amber-300' : 'text-slate-300'}">${colTag}${escH(it.shortLabel)} → ${escH(it.value)}</button>`;
+        }
+        if (!ph) ph = '<div class="text-xs text-slate-500">（这是第 1 格）</div>';
+        prevEl.innerHTML = ph;
+        prevEl.querySelectorAll('.prev-item').forEach(b => {
+          b.addEventListener('click', () => jumpToSequenceIndex(parseInt(b.getAttribute('data-prev-idx'), 10)));
+        });
+      }
+
+      if (autoScroll) {
+        scrollActiveCellIntoViewGentle();
+      }
+      try { updateTimeEstimates(); } catch (e) {}
+    }
+
+    // ============================================================================
+    // 8. 防抢跳智能语音引擎（利用 speechSessionToken 彻底消灭手动插队后加速的 Bug #5）
+    // ============================================================================
+    function playBeep(type) {
+      try {
+        if (!audioCtx) {
+          const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+          if (AudioContextClass) audioCtx = new AudioContextClass();
+        }
+        if (!audioCtx) return;
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        if (type === 'newline') {
+          osc.frequency.setValueAtTime(587.33, audioCtx.currentTime);
+          osc.frequency.setValueAtTime(880, audioCtx.currentTime + 0.08);
+          gain.gain.setValueAtTime(0.14, audioCtx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.24);
+          osc.start();
+          osc.stop(audioCtx.currentTime + 0.24);
+        } else if (type === 'sheetFlip') {
+          osc.frequency.setValueAtTime(523.25, audioCtx.currentTime);
+          osc.frequency.setValueAtTime(659.25, audioCtx.currentTime + 0.08);
+          osc.frequency.setValueAtTime(783.99, audioCtx.currentTime + 0.16);
+          gain.gain.setValueAtTime(0.16, audioCtx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.35);
+          osc.start();
+          osc.stop(audioCtx.currentTime + 0.35);
+        } else {
+          osc.frequency.setValueAtTime(520, audioCtx.currentTime);
+          gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.05);
+          osc.start();
+          osc.stop(audioCtx.currentTime + 0.05);
+        }
+      } catch (e) {}
+    }
+
+    function cancelActiveSpeechAndTimers() {
+      // 每次取消时递增令牌！之前所有挂起的 utter.onend / utter.onerror / setTimeout 瞬间全部失效！
+      speechSessionToken++;
+      if (postSpeechTimer) { clearTimeout(postSpeechTimer); postSpeechTimer = null; }
+      if (countdownAnimTimer) { clearInterval(countdownAnimTimer); countdownAnimTimer = null; }
+      if (speechFallbackTimer) { clearTimeout(speechFallbackTimer); speechFallbackTimer = null; }
+      try {
+        if ('speechSynthesis' in window) {
+          window.speechSynthesis.cancel();
+        }
+      } catch (e) {}
+    }
+
+    function setSpeechStatusUI(text, colorClass = 'bg-slate-800 text-slate-300') {
+      const badge = document.getElementById('hudSpeechStatusBadge');
+      if (badge) {
+        badge.className = `text-xs font-bold px-2.5 py-0.5 rounded ${colorClass}`;
+        badge.textContent = text;
+      }
+    }
+
+    function speakText(text, onSpeechFinishedCallback = null) {
+      cancelActiveSpeechAndTimers();
+      const myToken = speechSessionToken;
+
+      const rateInput = document.getElementById('speechRateInput');
+      const baseRate = rateInput ? parseFloat(rateInput.value) || 1.2 : 1.2;
+      const rate = baseRate * turboMultiplier;
+      const estimatedMs = Math.max(850, Math.round((String(text).length * 265) / rate));
+
+      let callbackFired = false;
+      const fireIfStillValid = () => {
+        // 如果令牌已经变了（说明用户刚刚手动点了别的格子或按了下一格），直接丢弃这次旧回调！
+        if (callbackFired || myToken !== speechSessionToken) return;
+        callbackFired = true;
+        if (speechFallbackTimer) { clearTimeout(speechFallbackTimer); speechFallbackTimer = null; }
+        if (typeof onSpeechFinishedCallback === 'function') {
+          onSpeechFinishedCallback(myToken);
+        }
+      };
+
+      try {
+        if ('speechSynthesis' in window) {
+          const utter = new SpeechSynthesisUtterance(text);
+          utter.lang = 'zh-CN';
+          utter.rate = rate;
+          setSpeechStatusUI('🔊 正在播报红字（念完才计时）...', 'bg-amber-500/20 text-amber-300 border border-amber-500/40');
+
+          let speechStartedAt = 0;
+          utter.onstart = () => { speechStartedAt = Date.now(); };
+          utter.onend = () => {
+            if (speechStartedAt && myToken === speechSessionToken && !callbackFired) {
+              const elapsed = Date.now() - speechStartedAt;
+              if (elapsed > 250 && text.length > 0) {
+                const measured = (elapsed * rate) / text.length;
+                msPerChar = Math.max(120, Math.min(500, msPerChar * 0.7 + measured * 0.3));
+              }
+            }
+            fireIfStillValid();
+          };
+          // 注意：当 speechSynthesis.cancel() 被调用时，部分浏览器会触发 onerror (error: 'canceled' or 'interrupted')
+          // 因为 cancelActiveSpeechAndTimers() 已经递增了 speechSessionToken，这里的 myToken !== speechSessionToken 会完美拦截它！
+          utter.onerror = (ev) => {
+            if (ev && (ev.error === 'canceled' || ev.error === 'interrupted')) return;
+            fireIfStillValid();
+          };
+
+          window.speechSynthesis.speak(utter);
+          speechFallbackTimer = setTimeout(fireIfStillValid, estimatedMs + 650);
+          return;
+        }
+      } catch (e) {}
+
+      speechFallbackTimer = setTimeout(fireIfStillValid, estimatedMs);
+    }
+
+    function composeSpeechForItem(item, idxOverride) {
+      const effIdx = (idxOverride === undefined) ? currentIndex : idxOverride;
+      if (!item) return "";
+      const mode = document.getElementById('voiceDetailSelect').value;
+
+      let prefix = '';
+      if (item.isNewColOrRow && effIdx > 0) {
+        prefix += `换${item.colLabel}，`;
+      }
+
+      const valSpeech = toTelegraphNumberSpeech(item.value);
+      if (mode === 'valueOnly') {
+        return `${prefix}${valSpeech}`;
+      }
+      return `${prefix}${item.shortLabel}，${valSpeech}`;
+    }
+
+    function getPauseSecondsPrecise() {
+      const numEl = document.getElementById('autoSecondsNumberInput');
+      const val = parseFloat(numEl ? numEl.value : '0.7');
+      return isNaN(val) ? 0.7 : Math.max(0.1, Math.min(10.0, Math.round(val * 10) / 10));
+    }
+
+    function speakCurrentCell(triggerSound = true) {
+      if (!sequenceList.length) return;
+      const item = sequenceList[currentIndex];
+      if (!item) return;
+
+      if (triggerSound) {
+        if (item.isNewColOrRow && currentIndex > 0) {
+          playBeep('newline');
+        } else {
+          playBeep('step');
+        }
+      }
+
+      const barWrap = document.getElementById('autoCountdownBarWrap');
+      if (barWrap) barWrap.classList.add('hidden');
+
+      const speechStr = composeSpeechForItem(item);
+      speakText(speechStr, (finishedToken) => {
+        if (finishedToken !== speechSessionToken) return;
+        if (!isAutoPlaying) {
+          setSpeechStatusUI('✅ 本格播报完毕（按空格连播 / ↓键下一格）', 'bg-slate-800 text-emerald-300');
+          return;
+        }
+
+        const pauseSec = Math.max(0.05, getPauseSecondsPrecise() / turboMultiplier);
+        const pauseMs = Math.round(pauseSec * 1000);
+        const bar = document.getElementById('autoCountdownBar');
+        if (barWrap && bar) {
+          barWrap.classList.remove('hidden');
+          bar.style.width = '100%';
+        }
+
+        const startTime = Date.now();
+        setSpeechStatusUI(`✍️ 请手写（留白 ${pauseSec.toFixed(1)}s）...`, 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40');
+
+        countdownAnimTimer = setInterval(() => {
+          if (finishedToken !== speechSessionToken || !isAutoPlaying) {
+            clearInterval(countdownAnimTimer);
+            return;
+          }
+          const elapsed = Date.now() - startTime;
+          const remain = Math.max(0, pauseMs - elapsed);
+          const pct = Math.max(0, (remain / pauseMs) * 100);
+          if (bar) bar.style.width = `${pct}%`;
+          setSpeechStatusUI(`✍️ 请手写（还剩 ${(remain / 1000).toFixed(1)}s 跳下一格）`, 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40');
+        }, 50);
+
+        postSpeechTimer = setTimeout(() => {
+          if (finishedToken !== speechSessionToken || !isAutoPlaying) return;
+          stepCell(1);
+        }, pauseMs);
+      });
+    }
+
+    function jumpToSequenceIndex(targetIdx) {
+      if (!sequenceList.length) return;
+      cancelActiveSpeechAndTimers();
+      currentIndex = Math.max(0, Math.min(sequenceList.length - 1, targetIdx));
+      renderDictationTable(true);
+      speakCurrentCell(true);
+    }
+
+    function stepCell(delta) {
+      if (!sequenceList.length) return;
+      cancelActiveSpeechAndTimers();
+      const nextIdx = currentIndex + delta;
+      if (nextIdx >= 0 && nextIdx < sequenceList.length) {
+        currentIndex = nextIdx;
+        renderDictationTable(true);
+        speakCurrentCell(true);
+      } else if (nextIdx >= sequenceList.length) {
+        const autoNextSheet = document.getElementById('chkAutoNextSheet').checked;
+        if (autoNextSheet && currentSheetIndex + 1 < workbookSheets.length) {
+          const nextSheetIdx = currentSheetIndex + 1;
+          const nextName = workbookSheets[nextSheetIdx].name;
+          playBeep('sheetFlip');
+          showToast(`📑 本表抄完！已自动翻到下一工作表：【${nextName}】`);
+          switchToSheetIndex(nextSheetIdx, true);
+        } else {
+          stopAutoPlay();
+          speakText("全部工作表红字已播报完毕");
+          showToast("🎉 恭喜！所有工作表的红字数据已全部抄写完毕！");
+        }
+      }
+    }
+
+    function syncAutoPlayButtonUI() {
+      const btn = document.getElementById('btnAutoPlayToggle');
+      const sec = getPauseSecondsPrecise().toFixed(1);
+      const spaceMode = document.getElementById('spacebarModeSelect').value;
+      const keyName = spaceMode === 'toggleAuto' ? '空格键' : '回车键';
+
+      if (isAutoPlaying) {
+        btn.classList.replace('bg-emerald-500', 'bg-rose-500');
+        btn.classList.replace('hover:bg-emerald-400', 'hover:bg-rose-400');
+        btn.innerHTML = `<span>⏸️ 暂停自动连播</span> <span class="hidden sm:inline text-xs font-extrabold bg-slate-950/25 px-2 py-0.5 rounded-lg">(按【${keyName}】暂停｜停${sec}s)</span>`;
+      } else {
+        btn.classList.replace('bg-rose-500', 'bg-emerald-500');
+        btn.classList.replace('hover:bg-rose-400', 'hover:bg-emerald-400');
+        btn.innerHTML = `<span>▶️ 开启自动连播</span> <span id="autoIntervalLabel" class="hidden sm:inline text-xs font-extrabold bg-slate-950/20 px-2 py-0.5 rounded-lg">(按【${keyName}】开启｜停${sec}s)</span>`;
+      }
+    }
+
+    function toggleAutoPlay() {
+      if (isAutoPlaying) {
+        stopAutoPlay();
+      } else {
+        isAutoPlaying = true;
+        syncAutoPlayButtonUI();
+        speakCurrentCell(true);
+      }
+    }
+
+    function stopAutoPlay() {
+      isAutoPlaying = false;
+      cancelActiveSpeechAndTimers();
+      const barWrap = document.getElementById('autoCountdownBarWrap');
+      if (barWrap) barWrap.classList.add('hidden');
+      setSpeechStatusUI('⏸️ 已暂停连播（按空格继续 / ↓键下一格）', 'bg-slate-800 text-slate-300');
+      syncAutoPlayButtonUI();
+    }
+
+    // ============================================================================
+    // 9. 导入 .xlsx 文件解析
+    // ============================================================================
+    function handleXlsxFile(file) {
+      if (!file) return;
+      stopAutoPlay();
+
+      if (typeof XLSX === 'undefined') {
+        showToast("⚠️ Excel 解析组件未就绪，请刷新重试！");
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = async function(e) {
+        try {
+          const arrayBuffer = e.target.result;
+          const data = new Uint8Array(arrayBuffer);
+          const wb = XLSX.read(data, { type: 'array', cellStyles: true });
+          const sheetNames = wb.SheetNames || [];
+          if (!sheetNames.length) {
+            showToast("⚠️ 未在 Excel 文件中检测到工作表！");
+            return;
+          }
+
+          const sheetRedMap = await extractRedCellsFromXlsxBuffer(arrayBuffer, wb);
+          const parsedSheets = [];
+          let totalRedFound = 0;
+
+          sheetNames.forEach(sName => {
+            const ws = wb.Sheets[sName];
+            if (!ws) return;
+            const rawGrid = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', raw: false });
+            let lastNonEmptyRow = rawGrid.length - 1;
+            while (lastNonEmptyRow >= 0 && !rawGrid[lastNonEmptyRow].some(c => String(c).trim() !== '')) {
+              lastNonEmptyRow--;
+            }
+            const trimmedRows = rawGrid.slice(0, lastNonEmptyRow + 1);
+            if (!trimmedRows.length) return;
+
+            let maxCols = 0;
+            trimmedRows.forEach(r => {
+              for (let c = r.length - 1; c >= 0; c--) {
+                if (String(r[c]).trim() !== '') {
+                  if (c + 1 > maxCols) maxCols = c + 1;
+                  break;
+                }
+              }
+            });
+            maxCols = Math.max(2, Math.min(maxCols, 35));
+
+            const cleanGrid = trimmedRows.map(r => {
+              const arr = [];
+              for (let c = 0; c < maxCols; c++) arr.push(String(r[c] ?? '').trim());
+              return arr;
+            });
+
+            const redSet = sheetRedMap[sName] || new Set();
+            // Ensure merged follower cells are never treated as separate columns
+            (ws['!merges'] || []).forEach(m => {
+              let anyRed = redSet.has(`${m.s.r}_${m.s.c}`);
+              for (let rr = m.s.r; rr <= m.e.r; rr++) {
+                for (let cc = m.s.c; cc <= m.e.c; cc++) {
+                  if (redSet.has(`${rr}_${cc}`)) anyRed = true;
+                  if (rr !== m.s.r || cc !== m.s.c) {
+                    redSet.delete(`${rr}_${cc}`);
+                    if (cleanGrid[rr] && cleanGrid[rr][cc] !== undefined) {
+                      cleanGrid[rr][cc] = '';
+                    }
+                  }
+                }
+              }
+              if (anyRed) redSet.add(`${m.s.r}_${m.s.c}`);
+            });
+            if (redSet.size === 0) {
+              for (let r = 1; r < cleanGrid.length; r++) {
+                const rowStr = cleanGrid[r].join(' ');
+                if (/工程名称|施工部位|委托单位|试验人|复核|监理/.test(rowStr)) continue;
+                for (let c = 1; c < maxCols; c++) {
+                  const v = cleanGrid[r][c];
+                  if (!v || v === '/' || /^(g|kg|mm|cm|MPa|kPa|%|℃|0\.01mm|g\/cm³)$/i.test(v)) continue;
+                  if (/^[Kk]\d+|\d+(\.\d+)?$|^合格$|^正常$|^密实/.test(v)) {
+                    redSet.add(`${r}_${c}`);
+                  }
+                }
+              }
+            }
+
+            totalRedFound += redSet.size;
+            parsedSheets.push({
+              name: sName,
+              title: `${file.name} · [${sName}]`,
+              grid: cleanGrid,
+              merges: ws['!merges'] || [],
+              redCellSet: redSet
+            });
+          });
+
+          if (!parsedSheets.length) {
+            showToast("⚠️ 表格内容为空！");
+            return;
+          }
+
+          workbookSheets = parsedSheets;
+          switchToSheetIndex(0, true);
+          setTimeout(() => {
+            focusAndZoomToActiveCell(false);
+          }, 80);
+          showToast(`🎉 成功导入 ${parsedSheets.length} 个工作表，共锁定 ${totalRedFound} 个红字手抄格！`);
+        } catch (err) {
+          showToast("⚠️ 解析 .xlsx 失败，请确认文件未加密！");
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    // ============================================================================
+    // 10. 算号器与通用辅助函数
+    // ============================================================================
+    
+
+    // ============================================================================
+    // 授权控制：读取同目录 licenses.json（只存授权码的 SHA-256 哈希），离线宽限 3 天
+    // ============================================================================
+    const LICENSE_URL = 'licenses.json';
+    const GRACE_MS = 3 * 24 * 3600 * 1000;
+    const LS_CODE = 'rt_auth_code';
+    const LS_OK = 'rt_auth_ok';
+    let isAuthorized = false;
+    let gateBusy = false;
+
+    function normCode(c) { return String(c || '').trim().toUpperCase().replace(/\s+/g, ''); }
+    function todayStr() {
+      const d = new Date();
+      return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    }
+    async function sha256Hex(str) {
+      const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+      return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+    async function checkLicense(code) {
+      let list;
+      try {
+        if (location.protocol === 'file:') {
+          return { status: 'offline', reason: '当前是用本地文件方式打开的（file://），无法验证。请用作者发的网页链接（https://…）打开，不要直接打开 HTML 文件。' };
+        }
+        const ctrl = new AbortController();
+        const tm = setTimeout(() => ctrl.abort(), 10000);
+        let r;
+        try { r = await fetch(LICENSE_URL + '?t=' + Date.now(), { cache: 'no-store', signal: ctrl.signal }); }
+        finally { clearTimeout(tm); }
+        if (!r.ok) {
+          return { status: 'offline', reason: `授权名单读取失败（服务器返回 ${r.status}）。${r.status === 404 ? '说明 licenses.json 没传到网页同一目录，或文件名不对，请联系作者。' : '请稍后重试。'}` };
+        }
+        let j;
+        try { j = await r.json(); }
+        catch (e) { return { status: 'offline', reason: 'licenses.json 格式有误（JSON 写错了，常见是多/少逗号），请联系作者。' }; }
+        list = Array.isArray(j.licenses) ? j.licenses : [];
+      } catch (e) {
+        const inWx = /MicroMessenger|QQ\//i.test(navigator.userAgent);
+        return { status: 'offline', reason: '网络请求失败（' + (e && e.name === 'AbortError' ? '超时' : '连不上服务器') + '）。' + (inWx ? '你正在微信/QQ 内置浏览器里，请点右上角“用浏览器打开”再试；' : '') + '也可换 Wi‑Fi / 4G 再试（部分手机网络访问 github.io 不稳定）。' };
+      }
+      let h;
+      try { h = await sha256Hex(code); }
+      catch (e) { return { status: 'denied', msg: '浏览器不支持验证，请用 https 链接打开' }; }
+      const it = list.find(x => String(x.hash || '').toLowerCase() === h);
+      if (!it) return { status: 'denied', msg: '授权码不正确，或已被移除' };
+      if (it.enabled === false) return { status: 'denied', msg: '该授权已被停用，请联系作者' };
+      if (it.expires && todayStr() > it.expires) return { status: 'denied', msg: `授权已于 ${it.expires} 到期，请联系作者` };
+      return { status: 'ok', name: it.name || '', expires: it.expires || '' };
+    }
+    function showGate(msg) {
+      isAuthorized = false;
+      try { stopAutoPlay(); } catch (e) {}
+      document.getElementById('licenseGate').classList.remove('hidden');
+      document.getElementById('gateMsg').textContent = msg;
+    }
+    function unlockApp(info) {
+      const wasLocked = !isAuthorized;
+      isAuthorized = true;
+      document.getElementById('licenseGate').classList.add('hidden');
+      if (wasLocked) {
+        showToast(info.offline ? '📴 离线使用中（3 天内联网验证一次即可）' : `✅ 授权通过${info.name ? '：' + info.name : ''}`);
+      }
+    }
+    async function runGate(inputCode) {
+      if (gateBusy) return;
+      gateBusy = true;
+      try {
+        let code = normCode(inputCode);
+        let fromInput = !!code;
+        if (!code) { try { code = normCode(localStorage.getItem(LS_CODE)); } catch (e) {} }
+        if (!code) { showGate('请输入作者发给你的授权码'); return; }
+        document.getElementById('gateMsg').textContent = '正在验证授权…';
+        const res = await checkLicense(code);
+        if (res.status === 'ok') {
+          try {
+            localStorage.setItem(LS_CODE, code);
+            localStorage.setItem(LS_OK, JSON.stringify({ code, t: Date.now(), exp: res.expires, name: res.name }));
+          } catch (e) {}
+          unlockApp(res);
+        } else if (res.status === 'denied') {
+          try { localStorage.removeItem(LS_OK); if (fromInput) localStorage.removeItem(LS_CODE); } catch (e) {}
+          showGate(res.msg);
+        } else {
+          let ok = null;
+          try { ok = JSON.parse(localStorage.getItem(LS_OK) || 'null'); } catch (e) {}
+          if (ok && ok.code === code && Date.now() - ok.t < GRACE_MS && !(ok.exp && todayStr() > ok.exp)) {
+            unlockApp({ offline: true, name: ok.name });
+          } else {
+            showGate((res.reason || '无法联网验证。') + '（离线宽限仅 3 天）');
+          }
+        }
+      } finally { gateBusy = false; }
+    }
+
+    // 授权码生成器（作者用）
+    function randomLicenseCode() {
+      const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+      const bytes = new Uint8Array(12);
+      crypto.getRandomValues(bytes);
+      const chars = Array.from(bytes).map(b => alphabet[b % alphabet.length]);
+      return [chars.slice(0, 4), chars.slice(4, 8), chars.slice(8, 12)].map(a => a.join('')).join('-');
+    }
+
+    function showToast(msg) {
+      const banner = document.getElementById('toastBanner');
+      banner.textContent = msg;
+      banner.classList.remove('opacity-0', 'translate-y-2');
+      banner.classList.add('opacity-100', 'translate-y-0');
+      setTimeout(() => {
+        banner.classList.remove('opacity-100', 'translate-y-0');
+        banner.classList.add('opacity-0', 'translate-y-2');
+      }, 2600);
+    }
+
+    function copyToClipboard(text) {
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text);
+          return;
+        }
+      } catch (e) {}
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand('copy'); } catch (e) {}
+      document.body.removeChild(ta);
+    }
+
+
+    // ============================================================================
+    // V7 新增：2倍速、时间预估
+    // ============================================================================
+    let spaceHeld = false, spaceLongFired = false, spaceHoldTimer = null;
+
+    function setTurbo(on) {
+      turboMultiplier = on ? 2 : 1;
+      const b = document.getElementById('turboBadge');
+      if (b) b.classList.toggle('hidden', !on);
+      const hb = document.getElementById('btnHoldTurbo');
+      if (hb) hb.classList.toggle('bg-violet-500', on);
+    }
+
+    function fmtDuration(ms) {
+      const total = Math.max(0, Math.round(ms / 1000));
+      const h = Math.floor(total / 3600);
+      const m = Math.floor((total % 3600) / 60);
+      const sec = total % 60;
+      if (h > 0) return `${h}时${m}分${sec}秒`;
+      if (m > 0) return `${m}分${String(sec).padStart(2, '0')}秒`;
+      return `${sec}秒`;
+    }
+
+    function getBaseRate() {
+      const el = document.getElementById('speechRateInput');
+      return el ? (parseFloat(el.value) || 1.2) : 1.2;
+    }
+
+    function costOfLens(lens, fromIdx) {
+      const rate = getBaseRate();
+      const pauseMs = getPauseSecondsPrecise() * 1000;
+      let sum = 0;
+      for (let i = fromIdx; i < lens.length; i++) {
+        sum += Math.max(700, 300 + (lens[i] * msPerChar) / rate) + pauseMs;
+      }
+      return sum;
+    }
+
+    function getSpeechLensForSheet(idx) {
+      if (idx === currentSheetIndex) {
+        return sequenceList.map((it, i) => composeSpeechForItem(it, i).length);
+      }
+      const sheet = workbookSheets[idx];
+      const key = [
+        document.getElementById('traversalOrderSelect').value,
+        document.getElementById('voiceDetailSelect').value,
+        document.getElementById('chkDedupMerged').checked,
+        sheet.redCellSet ? sheet.redCellSet.size : 0
+      ].join('|');
+      if (sheet._estKey === key && sheet._estLens) return sheet._estLens;
+
+      const saved = { sheetGrid, sheetMerges, redCellSet, mergeLeaderMap, mergeFollowerToLeader, sequenceList, currentIndex };
+      let lens = [];
+      try {
+        sheetGrid = sheet.grid;
+        sheetMerges = sheet.merges || [];
+        redCellSet = new Set(sheet.redCellSet || []);
+        rebuildMergeMaps();
+        currentIndex = 0;
+        buildSequence();
+        lens = sequenceList.map((it, i) => composeSpeechForItem(it, i).length);
+      } finally {
+        sheetGrid = saved.sheetGrid;
+        sheetMerges = saved.sheetMerges;
+        redCellSet = saved.redCellSet;
+        mergeLeaderMap = saved.mergeLeaderMap;
+        mergeFollowerToLeader = saved.mergeFollowerToLeader;
+        sequenceList = saved.sequenceList;
+        currentIndex = saved.currentIndex;
+      }
+      sheet._estKey = key;
+      sheet._estLens = lens;
+      return lens;
+    }
+
+    function updateTimeEstimates() {
+      if (!workbookSheets.length) return;
+      const curLens = getSpeechLensForSheet(currentSheetIndex);
+      const curRemain = costOfLens(curLens, currentIndex);
+      const curTotal = costOfLens(curLens, 0);
+      let fileTotal = curTotal;
+      let laterTotal = 0;
+      for (let i = 0; i < workbookSheets.length; i++) {
+        if (i === currentSheetIndex) continue;
+        const c = costOfLens(getSpeechLensForSheet(i), 0);
+        fileTotal += c;
+        if (i > currentSheetIndex) laterTotal += c;
+      }
+      const autoNext = document.getElementById('chkAutoNextSheet').checked;
+      const fileRemain = curRemain + (autoNext ? laterTotal : 0);
+      const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+      set('estCurRemain', fmtDuration(curRemain));
+      set('estCurTotal', fmtDuration(curTotal));
+      set('estFileRemain', fmtDuration(fileRemain));
+      set('estFileTotal', fmtDuration(fileTotal));
+    }
+
+    // ============================================================================
+    // 11. 事件绑定
+    // ============================================================================
+    window.addEventListener('DOMContentLoaded', () => {
+      loadMultiSheetPreset('road_multi_workbook');
+
+      // 演示表切换
+      document.getElementById('presetSelector').addEventListener('change', (e) => {
+        loadMultiSheetPreset(e.target.value);
+        speakCurrentCell(true);
+      });
+
+      // 上一表 / 下一表
+      document.getElementById('btnPrevSheet').addEventListener('click', () => {
+        if (currentSheetIndex > 0) {
+          stopAutoPlay();
+          switchToSheetIndex(currentSheetIndex - 1, true);
+          showToast(`⏮️ 已翻到上一工作表：【${workbookSheets[currentSheetIndex].name}】`);
+        } else {
+          showToast("⚠️ 已经是第 1 个工作表了！");
+        }
+      });
+      document.getElementById('btnNextSheet').addEventListener('click', () => {
+        if (currentSheetIndex + 1 < workbookSheets.length) {
+          stopAutoPlay();
+          switchToSheetIndex(currentSheetIndex + 1, true);
+          showToast(`⏭️ 已翻到下一工作表：【${workbookSheets[currentSheetIndex].name}】`);
+        } else {
+          showToast("⚠️ 已经是最后一个工作表了！");
+        }
+      });
+
+      // 回到当前播放位置 + 自动适屏缩放 (左侧按钮 + 右侧按钮 + F键)
+      document.getElementById('btnFocusCurrentCell').addEventListener('click', () => focusAndZoomToActiveCell(true));
+      document.getElementById('btnLocateCurrentRight').addEventListener('click', () => focusAndZoomToActiveCell(true));
+
+      // 表格缩放控制
+      document.getElementById('zoomSliderInput').addEventListener('input', (e) => {
+        applyTableZoom(parseInt(e.target.value, 10));
+      });
+      document.getElementById('btnZoomOut').addEventListener('click', () => applyTableZoom(currentZoomPercent - 10));
+      document.getElementById('btnZoomIn').addEventListener('click', () => applyTableZoom(currentZoomPercent + 10));
+      document.getElementById('btnZoomFitAll').addEventListener('click', zoomToFitWholeTable);
+
+      // 手动增删红字模式
+      const toggleBrush = () => {
+        isRedBrushMode = !isRedBrushMode;
+        const banner = document.getElementById('redBrushBanner');
+        if (isRedBrushMode) {
+          banner.classList.remove('hidden');
+          banner.classList.add('flex');
+        } else {
+          banner.classList.add('hidden');
+          banner.classList.remove('flex');
+        }
+      };
+      document.getElementById('btnToggleRedBrushMode').addEventListener('click', toggleBrush);
+      document.getElementById('btnExitRedBrush').addEventListener('click', toggleBrush);
+
+      // 上传 & 全页面拖拽 .xlsx
+      document.getElementById('xlsxFileInput').addEventListener('change', (e) => {
+        if (e.target.files && e.target.files[0]) {
+          handleXlsxFile(e.target.files[0]);
+          e.target.value = '';
+        }
+      });
+      window.addEventListener('dragover', (e) => e.preventDefault());
+      window.addEventListener('drop', (e) => {
+        e.preventDefault();
+        if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]) {
+          handleXlsxFile(e.dataTransfer.files[0]);
+        }
+      });
+
+      // 走格方向、口令模式、合并单元格去重开关
+      ['traversalOrderSelect', 'voiceDetailSelect', 'chkDedupMerged'].forEach(id => {
+        document.getElementById(id).addEventListener('change', () => {
+          cancelActiveSpeechAndTimers();
+          currentIndex = 0;
+          renderDictationTable(true);
+          speakCurrentCell(false);
+        });
+      });
+
+      // 空格键模式切换
+      document.getElementById('spacebarModeSelect').addEventListener('change', (e) => {
+        const mode = e.target.value;
+        document.getElementById('nextKeyHintLabel').textContent =
+          mode === 'toggleAuto' ? '(快捷键：↓ 或 →)' : '(快捷键：空格键)';
+        syncAutoPlayButtonUI();
+      });
+
+      // 语速调节
+      document.getElementById('speechRateInput').addEventListener('input', (e) => {
+        document.getElementById('speechRateLabel').textContent = `${e.target.value}x`;
+      });
+
+      // 精确到 0.1 秒的停顿秒数双向同步（滑块 + 数字框 + -0.1s/+0.1s 按钮）
+      function setPrecisePauseSeconds(val) {
+        const clamped = Math.max(0.1, Math.min(10.0, Math.round(val * 10) / 10));
+        document.getElementById('autoSecondsNumberInput').value = clamped.toFixed(1);
+        document.getElementById('autoSecondsInput').value = Math.min(6.0, clamped);
+        syncAutoPlayButtonUI();
+      }
+      document.getElementById('autoSecondsInput').addEventListener('input', (e) => {
+        setPrecisePauseSeconds(parseFloat(e.target.value));
+      });
+      document.getElementById('autoSecondsNumberInput').addEventListener('change', (e) => {
+        setPrecisePauseSeconds(parseFloat(e.target.value) || 0.7);
+      });
+      document.getElementById('btnPauseMinus01').addEventListener('click', () => {
+        setPrecisePauseSeconds(getPauseSecondsPrecise() - 0.1);
+      });
+      document.getElementById('btnPausePlus01').addEventListener('click', () => {
+        setPrecisePauseSeconds(getPauseSecondsPrecise() + 0.1);
+      });
+
+      // 主控按钮
+      document.getElementById('btnNextCell').addEventListener('click', () => stepCell(1));
+      document.getElementById('btnPrevCell').addEventListener('click', () => stepCell(-1));
+      document.getElementById('btnReplayVoice').addEventListener('click', () => speakCurrentCell(true));
+      document.getElementById('btnAutoPlayToggle').addEventListener('click', toggleAutoPlay);
+      document.getElementById('btnResetProgress').addEventListener('click', () => {
+        stopAutoPlay();
+        currentIndex = 0;
+        renderDictationTable(true);
+        speakCurrentCell(true);
+      });
+
+      // 全局键盘快捷键
+      window.addEventListener('keydown', (e) => {
+        if (!isAuthorized) return;
+        const activeTag = document.activeElement ? document.activeElement.tagName.toLowerCase() : '';
+        if (activeTag === 'input' || activeTag === 'textarea' || activeTag === 'select') return;
+
+        const spaceMode = document.getElementById('spacebarModeSelect').value;
+
+        if (e.code === 'Space') {
+          e.preventDefault();
+          if (e.repeat) return;
+          spaceHeld = true;
+          spaceLongFired = false;
+          clearTimeout(spaceHoldTimer);
+          spaceHoldTimer = setTimeout(() => { spaceLongFired = true; setTurbo(true); }, 380);
+        } else if (e.code === 'Enter') {
+          e.preventDefault();
+          toggleAutoPlay();
+        } else if (e.code === 'ArrowRight' || e.code === 'ArrowDown') {
+          e.preventDefault();
+          stepCell(1);
+        } else if (e.code === 'ArrowLeft' || e.code === 'ArrowUp') {
+          e.preventDefault();
+          stepCell(-1);
+        } else if (e.code === 'KeyR') {
+          e.preventDefault();
+          speakCurrentCell(true);
+        } else if (e.code === 'KeyF') {
+          e.preventDefault();
+          focusAndZoomToActiveCell(true);
+        } else if (e.code === 'PageDown') {
+          e.preventDefault();
+          document.getElementById('btnNextSheet').click();
+        } else if (e.code === 'PageUp') {
+          e.preventDefault();
+          document.getElementById('btnPrevSheet').click();
+        }
+      });
+
+      // ===== V7 新增事件 =====
+      window.addEventListener('keyup', (e) => {
+        if (e.code !== 'Space' || !spaceHeld) return;
+        spaceHeld = false;
+        clearTimeout(spaceHoldTimer);
+        if (spaceLongFired) {
+          spaceLongFired = false;
+          setTurbo(false);
+        } else {
+          const mode = document.getElementById('spacebarModeSelect').value;
+          if (mode === 'toggleAuto') toggleAutoPlay(); else stepCell(1);
+        }
+      });
+      window.addEventListener('blur', () => {
+        spaceHeld = false; spaceLongFired = false;
+        clearTimeout(spaceHoldTimer);
+        setTurbo(false);
+      });
+
+      const holdBtn = document.getElementById('btnHoldTurbo');
+      const holdOn = (e) => { e.preventDefault(); setTurbo(true); };
+      const holdOff = () => setTurbo(false);
+      holdBtn.addEventListener('pointerdown', holdOn);
+      ['pointerup', 'pointerleave', 'pointercancel'].forEach(ev => holdBtn.addEventListener(ev, holdOff));
+      holdBtn.addEventListener('contextmenu', (e) => e.preventDefault());
+
+      document.getElementById('btnToggleSettings').addEventListener('click', () => {
+        const asideEl = document.querySelector('aside');
+        const open = asideEl.classList.toggle('more-open');
+        document.getElementById('btnToggleSettings').textContent = open
+          ? '⚙️ 收起设置' : '⚙️ 更多：预估时间 / 2倍速 / 语速 / 停顿 / 走格（点开）';
+      });
+
+      ['speechRateInput', 'autoSecondsInput', 'autoSecondsNumberInput', 'chkAutoNextSheet'].forEach(id => {
+        const evName = id === 'chkAutoNextSheet' || id === 'autoSecondsNumberInput' ? 'change' : 'input';
+        document.getElementById(id).addEventListener(evName, () => setTimeout(updateTimeEstimates, 0));
+      });
+      document.getElementById('btnPauseMinus01').addEventListener('click', () => setTimeout(updateTimeEstimates, 0));
+      document.getElementById('btnPausePlus01').addEventListener('click', () => setTimeout(updateTimeEstimates, 0));
+
+      if (window.innerWidth < 640) applyTableZoom(80);
+      updateTimeEstimates();
+
+
+      // ===== V8 授权闸门 & 授权码生成器 =====
+      runGate();
+      document.getElementById('gateSubmitBtn').addEventListener('click', () => runGate(document.getElementById('gateCodeInput').value));
+      document.getElementById('gateCodeInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') runGate(document.getElementById('gateCodeInput').value); });
+      const recheck = () => { if (isAuthorized) runGate(); };
+      setInterval(recheck, 10 * 60 * 1000);
+      document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') recheck(); });
+      window.addEventListener('online', recheck);
+
+      document.getElementById('btnGenRandomCode').addEventListener('click', () => {
+        document.getElementById('genCode').value = randomLicenseCode();
+      });
+      document.getElementById('btnGenLicenseLine').addEventListener('click', async () => {
+        const code = normCode(document.getElementById('genCode').value);
+        if (!code) { showToast('⚠️ 请先填写或随机生成授权码'); return; }
+        const name = document.getElementById('genName').value.trim() || '未命名';
+        const exp = document.getElementById('genExpires').value;
+        const hash = await sha256Hex(code);
+        const line = `    { "hash": "${hash}", "name": "${name}", "enabled": true${exp ? `, "expires": "${exp}"` : ''} },`;
+        const out = document.getElementById('genOutput');
+        out.value = line + `\n// 发给 ${name} 的授权码：${code}`;
+        showToast('✅ 已生成。授权码请单独发给同事');
+      });
+      document.getElementById('genOutput').addEventListener('click', (e) => {
+        const first = e.target.value.split('\n')[0];
+        if (first) { copyToClipboard(first); showToast('📋 已复制 licenses.json 记录行'); }
+      });
+
+      // 授权码与水印弹窗
+      const modalAdmin = document.getElementById('modalAdminSettings');
+      document.getElementById('btnOpenAdminModal').addEventListener('click', () => {
+        modalAdmin.classList.remove('hidden');
+        modalAdmin.classList.add('flex');
+      });
+      document.getElementById('btnCloseAdminModal').addEventListener('click', () => {
+        modalAdmin.classList.add('hidden');
+        modalAdmin.classList.remove('flex');
+      });
+      document.getElementById('btnSaveBranding').addEventListener('click', () => {
+        const title = document.getElementById('inputBrandTitle').value.trim();
+        const wm = document.getElementById('inputWatermark').value.trim();
+        if (title) document.getElementById('brandTitleDisplay').textContent = title;
+        if (wm) document.getElementById('watermarkDisplay').textContent = wm;
+        modalAdmin.classList.add('hidden');
+        modalAdmin.classList.remove('flex');
+        showToast("✅ 顶部水印已更新！");
+      });
+    });
+  </script>
+</body>
+</html>
