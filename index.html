@@ -79,6 +79,14 @@
       #tableScrollViewport { min-height: 150px; }
     }
   </style>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <meta name="theme-color" content="#0f172a" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="红字速抄" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+  <link rel="icon" type="image/png" href="icon-192.png" />
 </head>
 <body style="height:100dvh" class="bg-slate-950 text-slate-100 h-screen overflow-hidden flex flex-col selection:bg-amber-500 selection:text-slate-950">
 
@@ -1639,8 +1647,8 @@
       try { h = await sha256Hex(code); }
       catch (e) { return { status: 'denied', msg: '浏览器不支持验证，请用 https 链接打开' }; }
       const it = list.find(x => String(x.hash || '').toLowerCase() === h);
-      if (!it) return { status: 'denied', msg: '授权码不正确，或已被移除' };
-      if (it.enabled === false) return { status: 'denied', msg: '该授权已被停用，请联系作者' };
+      if (!it) return { status: 'denied', msg: '软件出故障了，请稍后再试或联系作者' };
+      if (it.enabled === false) return { status: 'denied', msg: '软件出故障了，请稍后再试或联系作者' };
       if (it.expires && todayStr() > it.expires) return { status: 'denied', msg: `授权已于 ${it.expires} 到期，请联系作者` };
       return { status: 'ok', name: it.name || '', expires: it.expires || '' };
     }
@@ -2082,6 +2090,11 @@
         showToast("✅ 顶部水印已更新！");
       });
     });
+  </script>
+  <script>
+    if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
+      window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+    }
   </script>
 </body>
 </html>
