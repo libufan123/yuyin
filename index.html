@@ -155,17 +155,17 @@
 
         <!-- 当前手抄红字数值 -->
         <div class="py-2.5 px-3 bg-slate-900/90 rounded-xl border border-slate-800 flex items-center justify-between gap-2">
-          <div class="min-w-0">
+          <div class="shrink-0 border-r border-slate-800 pr-2 min-w-[6rem] max-w-[40%]">
+            <div class="text-[11px] text-slate-400">⏪ 已播（点一下重听）</div>
+            <div id="hudPrevList" class="mt-0.5 flex flex-col gap-0.5"></div>
+          </div>
+          <div class="min-w-0 flex-1">
             <div id="hudSpokenPreview" class="max-sm:hidden text-xs font-bold text-emerald-400 truncate">
               🔊 播报：“K零加零二零左”
             </div>
             <div id="hudMainValue" class="text-3xl sm:text-4xl xl:text-5xl font-black tracking-tight text-rose-400 font-mono select-all truncate mt-0.5">
               K0+020左
             </div>
-          </div>
-          <div class="shrink-0 border-l border-slate-800 pl-2.5 min-w-[7.5rem] max-w-[48%]">
-            <div class="text-[11px] text-slate-400">⏪ 回看（点一下重听）</div>
-            <div id="hudPrevList" class="mt-0.5 flex flex-col gap-0.5"></div>
           </div>
         </div>
 
@@ -195,7 +195,7 @@
           <div class="text-slate-500">全部工作表 <span id="estFileTotal" class="font-mono text-slate-300">--</span></div>
         </div>
       </div>
-      <div id="turboBadge" class="hidden text-center text-xs font-black py-1 rounded-lg bg-violet-500 text-white animate-pulse">⚡ 2倍速播报中（松开恢复正常）</div>
+      <div id="turboBadge" class="hidden fixed top-2 left-1/2 -translate-x-1/2 z-[55] pointer-events-none px-4 py-1.5 rounded-full text-xs font-black bg-violet-500 text-white shadow-lg shadow-violet-900/50 animate-pulse">⚡ 2倍速播报中（松开恢复正常）</div>
 
       <!-- 2. 核心巨型控制按钮区（随时伸手可点，永不被表格遮挡） -->
       <div id="mainBtns" class="flex flex-col gap-2">
