@@ -476,7 +476,7 @@
           <option value="env">演示：温湿度记录红字台账</option>
         </select>
 
-        <button id="btnOpenAdminModal" class="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-xs font-semibold transition shrink-0" title="授权码生成器与水印设置">
+        <button id="btnOpenAdminModal" class="hidden px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-xs font-semibold transition shrink-0" title="授权码生成器与水印设置">
           ⚙️ <span class="max-sm:hidden">授权码/水印</span>
         </button>
       </div>
@@ -779,16 +779,16 @@
   </main>
 
   <!-- 授权闸门：仅在非预览域名且无有效授权缓存时弹出 -->
-  <div id="licenseGate" class="fixed inset-0 z-[60] bg-slate-950/95 backdrop-blur-md hidden items-center justify-center p-5">
+  <div id="licenseGate" class="fixed inset-0 z-[60] bg-slate-950 flex items-center justify-center p-5">
     <div class="w-full max-w-sm bg-slate-900 border border-slate-700 rounded-2xl p-5 flex flex-col gap-3 shadow-2xl">
       <div class="flex items-center justify-between">
         <h2 class="text-lg font-black text-white">🔐 请输入授权码</h2>
         <span class="text-[11px] px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 font-bold">V11 专享版</span>
       </div>
       <p id="gateMsg" class="text-sm text-amber-300">请输入作者发放的授权码验证进入：</p>
-      <input id="gateCodeInput" type="text" autocomplete="off" autocapitalize="characters" placeholder="输入授权码 (测试可用 VIP-8888)" class="w-full bg-slate-950 border border-slate-600 rounded-xl px-3 py-3 font-mono text-lg text-white uppercase text-center focus:outline-none focus:border-amber-500" />
+      <input id="gateCodeInput" type="text" autocomplete="off" autocapitalize="characters" placeholder="作者发给你的授权码" class="w-full bg-slate-950 border border-slate-600 rounded-xl px-3 py-3 font-mono text-lg text-white uppercase text-center focus:outline-none focus:border-amber-500" />
       <button id="gateSubmitBtn" type="button" class="w-full py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black">验证并进入</button>
-      <p class="text-[11px] text-slate-400">首次使用需联网验证；验证成功后，离线或无信号也能继续使用。</p>
+      <p class="text-[11px] text-slate-400">使用过程中请保持网络连接。</p>
     </div>
   </div>
 
@@ -812,7 +812,7 @@
           <button id="btnGenLicenseLine" type="button" class="px-3 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs">生成</button>
         </div>
         <textarea id="genOutput" readonly rows="3" placeholder="生成的 licenses.json 记录会出现在这里（点击自动复制）" class="w-full bg-emerald-950/50 border border-emerald-500/50 rounded-lg px-3 py-2 font-mono text-[11px] text-amber-300 cursor-pointer"></textarea>
-        <p class="text-[11px] text-slate-400">名单里只存授权码的 SHA-256 哈希值，外人看到 licenses.json 也反推不出授权码。内置主控通行码：<code class="text-emerald-300 font-mono">VIP-8888</code>。</p>
+        <p class="text-[11px] text-slate-400">名单里只存授权码的 SHA-256 哈希值，外人看到 licenses.json 也反推不出授权码。授权码本身请单独发给同事。</p>
       </div>
 
       <div class="space-y-2.5 bg-slate-950 p-4 rounded-xl border border-slate-800 text-xs sm:text-sm">
@@ -2125,6 +2125,7 @@
 
     function toggleAutoPlay() {
       if (!isAuthorized) return;
+      if (!isLocalOrPreviewEnv() && Date.now() - lastVerifyTs >= CHECK_INTERVAL_MS) runGate(null, true);
       if (isAutoPlaying) {
         stopAutoPlay();
       } else {
@@ -2275,15 +2276,21 @@
     }
 
     // ============================================================================
-    // 11. 授权控制：支持作者内置通行码 VIP-8888 + 本地/Canvas 预览自动放行 + 正式域名严格校验
+    // 11. 授权控制：读取同目录 licenses.json（SHA-256 哈希核验）
+    //     - 每 1 小时自动联网核验一次；
+    //     - 若被停用 (enabled: false) 或已到期，立即锁死并伪装显示“软件出故障了”；
+    //     - 若遇临时断网，允许自上次核验成功起宽限 1 小时，断网满 1 小时后再锁死。
     // ============================================================================
     const LICENSE_URL = 'licenses.json';
-    const GRACE_MS = 7 * 24 * 3600 * 1000;
+    const CHECK_INTERVAL_MS = 60 * 60 * 1000; // 每 1 小时核验一次
+    const OFFLINE_GRACE_MS = 60 * 60 * 1000;  // 断网宽限 1 小时后锁死
     const LS_CODE = 'rt_auth_code';
     const LS_OK = 'rt_auth_ok';
-    const MASTER_CODES = new Set(['VIP-8888', 'ROADTEST-VIP', 'RT8888']);
-    let isAuthorized = true;
+    const FAULT_MSG = '软件出故障了，请稍后再试或联系作者';
+    let isAuthorized = false;
     let gateBusy = false;
+    let lastVerifyTs = 0;
+    let offlineLockTimer = null;
 
     function normCode(c) { return String(c || '').trim().toUpperCase().replace(/\s+/g, ''); }
     function todayStr() {
@@ -2295,45 +2302,44 @@
       return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
     }
     function isLocalOrPreviewEnv() {
-      const proto = location.protocol;
       const host = location.hostname || '';
-      if (proto === 'file:' || proto === 'blob:' || proto === 'data:') return true;
-      if (!host || host === 'localhost' || host === '127.0.0.1' || host.endsWith('.local')) return true;
-      // 仅在部署到 github.io / 正式生产域名时要求强制联网校验 licenses.json
-      if (host.includes('usercontent.goog') || host.includes('scf.usercontent') || host.includes('webcontainer')) return true;
-      return false;
+      return host.includes('usercontent.goog') || host.includes('scf.usercontent');
     }
 
     async function checkLicense(code) {
-      if (MASTER_CODES.has(code)) {
-        return { status: 'ok', name: '作者专享通行码', expires: '' };
-      }
       let list;
       try {
+        if (location.protocol === 'file:') {
+          return { status: 'offline', msg: FAULT_MSG };
+        }
         const ctrl = new AbortController();
         const tm = setTimeout(() => ctrl.abort(), 8000);
         let r;
-        try { r = await fetch(LICENSE_URL + '?t=' + Date.now(), { cache: 'no-store', signal: ctrl.signal }); }
-        finally { clearTimeout(tm); }
+        try {
+          r = await fetch(LICENSE_URL + '?t=' + Date.now() + '_' + Math.random().toString(36).slice(2, 7), {
+            cache: 'no-store',
+            headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate', 'Pragma': 'no-cache' },
+            signal: ctrl.signal
+          });
+        } finally { clearTimeout(tm); }
         if (!r.ok) {
-          if (r.status === 404 && isLocalOrPreviewEnv()) {
-            return { status: 'ok', name: '本地预览模式', expires: '' };
-          }
-          return { status: 'offline', reason: `授权名单读取失败（HTTP ${r.status}）。请确认 licenses.json 已上传至同级目录，或输入内置测试码 VIP-8888。` };
+          return { status: 'offline', msg: FAULT_MSG };
         }
         let j;
         try { j = await r.json(); }
-        catch (e) { return { status: 'offline', reason: 'licenses.json 格式有误，请检查 JSON 语法。' }; }
+        catch (e) { return { status: 'offline', msg: FAULT_MSG }; }
         list = Array.isArray(j.licenses) ? j.licenses : [];
       } catch (e) {
-        return { status: 'offline', reason: '无法连接授权服务器，可输入作者通行码或切换网络重试。' };
+        return { status: 'offline', msg: FAULT_MSG };
       }
       let h;
       try { h = await sha256Hex(code); }
-      catch (e) { return { status: 'denied', msg: '当前浏览器环境不支持加密校验，请使用现代浏览器打开' }; }
+      catch (e) { return { status: 'denied', msg: FAULT_MSG }; }
       const it = list.find(x => String(x.hash || '').toLowerCase() === h);
-      if (!it || it.enabled === false) return { status: 'denied', msg: '授权码无效或已停用，请核对后重试' };
-      if (it.expires && todayStr() > it.expires) return { status: 'denied', msg: `授权已于 ${it.expires} 到期，请联系作者续期` };
+      // 无论是不存在、enabled: false 停用、还是 expires 已到期，一律返回 denied 并显示“软件出故障了”！
+      if (!it || it.enabled === false || (it.expires && todayStr() > it.expires)) {
+        return { status: 'denied', msg: FAULT_MSG };
+      }
       return { status: 'ok', name: it.name || '', expires: it.expires || '' };
     }
 
@@ -2343,23 +2349,23 @@
       const gate = document.getElementById('licenseGate');
       gate.classList.remove('hidden');
       gate.classList.add('flex');
-      document.getElementById('gateMsg').textContent = msg;
+      document.getElementById('gateMsg').textContent = msg || FAULT_MSG;
     }
 
     function unlockApp(info) {
       const wasLocked = !isAuthorized;
       isAuthorized = true;
+      if (offlineLockTimer) { clearTimeout(offlineLockTimer); offlineLockTimer = null; }
       const gate = document.getElementById('licenseGate');
       gate.classList.add('hidden');
       gate.classList.remove('flex');
       if (wasLocked && info && !info.silent) {
-        showToast(info.offline ? '📴 离线宽限使用中' : `✅ 授权通过${info.name ? '：' + info.name : ''}`);
+        showToast(`✅ 验证通过${info.name ? '：' + info.name : ''}`);
       }
     }
 
-    async function runGate(inputCode) {
+    async function runGate(inputCode, isSilentHeartbeat = false) {
       if (gateBusy) return;
-      // 本地 / Canvas 预览环境默认直接放行，不阻断操作
       if (!inputCode && isLocalOrPreviewEnv()) {
         unlockApp({ silent: true });
         return;
@@ -2370,23 +2376,34 @@
         let fromInput = !!code;
         if (!code) { code = normCode(safeGetStorage(LS_CODE, '')); }
         if (!code) { showGate('请输入作者发给你的授权码'); return; }
-        document.getElementById('gateMsg').textContent = '正在验证授权…';
+        if (!isSilentHeartbeat) {
+          document.getElementById('gateMsg').textContent = '正在验证…';
+        }
         const res = await checkLicense(code);
         if (res.status === 'ok') {
+          lastVerifyTs = Date.now();
           safeSetStorage(LS_CODE, code);
-          safeSetStorage(LS_OK, JSON.stringify({ code, t: Date.now(), exp: res.expires, name: res.name }));
-          unlockApp(res);
+          safeSetStorage(LS_OK, JSON.stringify({ code, t: lastVerifyTs, exp: res.expires, name: res.name }));
+          unlockApp({ name: res.name, silent: isSilentHeartbeat });
         } else if (res.status === 'denied') {
+          // 明确被停用(enabled: false)、过期或无效：立刻清除缓存并锁死！
           safeRemoveStorage(LS_OK);
           if (fromInput) safeRemoveStorage(LS_CODE);
-          showGate(res.msg);
+          showGate(res.msg || FAULT_MSG);
         } else {
+          // 网络异常/断网：检查距离上次核验成功是否未满 1 小时
           let ok = null;
           try { ok = JSON.parse(safeGetStorage(LS_OK, 'null')); } catch (e) {}
-          if (ok && ok.code === code && Date.now() - ok.t < GRACE_MS && !(ok.exp && todayStr() > ok.exp)) {
-            unlockApp({ offline: true, name: ok.name });
+          const elapsed = ok && ok.code === code ? (Date.now() - ok.t) : Infinity;
+          if (ok && elapsed < OFFLINE_GRACE_MS && !(ok.exp && todayStr() > ok.exp)) {
+            const remainMs = Math.max(1000, OFFLINE_GRACE_MS - elapsed);
+            unlockApp({ name: ok.name, silent: true });
+            if (offlineLockTimer) clearTimeout(offlineLockTimer);
+            offlineLockTimer = setTimeout(() => {
+              if (!isLocalOrPreviewEnv()) runGate(null, true);
+            }, remainMs);
           } else {
-            showGate(res.reason || '无法联网验证授权。');
+            showGate(FAULT_MSG);
           }
         }
       } finally { gateBusy = false; }
@@ -2828,15 +2845,57 @@
       document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'visible') {
           if (isAutoPlaying) requestScreenWakeLock();
-          if (!isLocalOrPreviewEnv() && isAuthorized) runGate();
+          if (!isLocalOrPreviewEnv() && isAuthorized && Date.now() - lastVerifyTs >= CHECK_INTERVAL_MS) runGate(null, true);
         }
       });
 
-      // 授权闸门与生成器
+      // 授权闸门与定时复核（每 1 小时核验一次；断网时启动 1 小时倒计时，满 1 小时未恢复则锁死）
       runGate();
-      document.getElementById('gateSubmitBtn').addEventListener('click', () => runGate(document.getElementById('gateCodeInput').value));
+      document.getElementById('gateSubmitBtn').addEventListener('click', () => runGate(document.getElementById('gateCodeInput').value, false));
       document.getElementById('gateCodeInput').addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') runGate(document.getElementById('gateCodeInput').value);
+        if (e.key === 'Enter') runGate(document.getElementById('gateCodeInput').value, false);
+      });
+      const recheckAuthHourly = () => {
+        if (!isLocalOrPreviewEnv() && isAuthorized) {
+          runGate(null, true);
+        }
+      };
+      setInterval(recheckAuthHourly, CHECK_INTERVAL_MS);
+      window.addEventListener('online', () => {
+        if (offlineLockTimer) { clearTimeout(offlineLockTimer); offlineLockTimer = null; }
+        recheckAuthHourly();
+      });
+      window.addEventListener('offline', () => {
+        if (isLocalOrPreviewEnv()) return;
+        if (offlineLockTimer) clearTimeout(offlineLockTimer);
+        offlineLockTimer = setTimeout(() => {
+          if (!navigator.onLine) showGate(FAULT_MSG);
+          else runGate(null, true);
+        }, OFFLINE_GRACE_MS);
+      });
+
+      // 隐藏彩蛋入口：连续点击 5 次顶部标题（电脑端 #brandTitleDisplay 或手机端看板左上角表名徽章 #hudSheetBadge）弹出授权码生成器与水印设置
+      let secretTapCount = 0;
+      let secretTapTimer = null;
+      const handleSecretFiveTaps = () => {
+        secretTapCount++;
+        clearTimeout(secretTapTimer);
+        if (secretTapCount >= 5) {
+          secretTapCount = 0;
+          const modalAdmin = document.getElementById('modalAdminSettings');
+          modalAdmin.classList.remove('hidden');
+          modalAdmin.classList.add('flex');
+          showToast('🔓 已打开作者专属后台设置');
+        } else {
+          secretTapTimer = setTimeout(() => { secretTapCount = 0; }, 1600);
+        }
+      };
+      ['brandTitleDisplay', 'hudSheetBadge'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+          el.style.cursor = 'pointer';
+          el.addEventListener('click', handleSecretFiveTaps);
+        }
       });
 
       document.getElementById('btnGenRandomCode').addEventListener('click', () => {
