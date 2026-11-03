@@ -70,13 +70,34 @@
       header > div > div:first-child { display: none; }
     }
     @media (max-width: 639px) {
-      #mainBtns { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
-      #mainBtns > div.grid { grid-column: 1 / -1; gap: 6px; }
-      #mainBtns > button { padding-top: 10px; padding-bottom: 10px; font-size: 14px; }
-      #mainBtns > div.grid > button { padding-top: 6px; padding-bottom: 6px; }
-      #mainBtns > div.grid > button span:nth-child(2) { display: none; }
       #hudMainValue { font-size: 1.75rem; line-height: 2rem; }
       #tableScrollViewport { min-height: 150px; }
+    }
+    /* ===== V9：按钮永不跑位 ===== */
+    #hudSpeechStatusBadge { display:block; max-width:100%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; height:22px; line-height:18px; }
+    #autoCountdownBarWrap.hidden { display:block !important; visibility:hidden; }
+    @media (max-width: 1023px) {
+      #hudPrevList .prev-item { max-width: 100%; }
+    }
+    @media (max-width: 639px) {
+      aside { scrollbar-width: none; }
+      /* 主按钮区：钉在操控台底部，永远看得见、不需要滑动 */
+      #mainBtns { position: sticky; bottom: -10px; z-index: 6; background: #0f172a; padding: 6px 0 10px; margin-top: auto;
+                  display: grid; grid-template-columns: 1fr 1fr; gap: 6px; box-shadow: 0 -8px 10px -6px #0f172a; }
+      #mainBtns > div.grid { display: contents; }
+      #btnAutoPlayToggle { order: 1; min-height: 56px; font-size: 15px; padding: 8px 6px; }
+      #btnHoldTurbo      { order: 2; min-height: 56px; font-size: 15px; padding: 8px 6px; }
+      #btnPrevCell       { order: 3; }
+      #btnNextCell       { order: 4; min-height: 46px; padding: 6px; font-size: 14px; }
+      #btnReplayVoice    { order: 5; }
+      #btnFocusCurrentCell { order: 6; }
+      #btnPrevCell, #btnReplayVoice, #btnFocusCurrentCell { min-height: 40px; padding: 4px; }
+      #btnAutoPlayToggle span:nth-child(2), #btnNextCell span:nth-child(2) { display: none; }
+      #hudPrevList .prev-item:nth-child(3) { display: none; }
+      #hudSpeechStatusBadge { font-size: 11px; height: 20px; line-height: 16px; }
+    }
+    @media (min-width: 1024px) {
+      #btnHoldTurbo { order: 3; }
     }
   </style>
   <link rel="manifest" href="manifest.webmanifest" />
@@ -211,6 +232,11 @@
           <span id="nextKeyHintLabel" class="hidden sm:inline text-xs font-extrabold bg-slate-950/20 px-2 py-0.5 rounded-lg">(快捷键：↓ 或 →)</span>
         </button>
 
+        <!-- 主按钮 C：按住 2 倍速（手机上与“连播”并排，始终可见） -->
+        <button id="btnHoldTurbo" class="select-none w-full py-2.5 rounded-xl bg-violet-500/20 hover:bg-violet-500/30 border border-violet-500/50 text-violet-200 font-black text-sm" style="touch-action:none;-webkit-user-select:none;-webkit-touch-callout:none">
+          ⚡ 按住2倍速 <span class="hidden lg:inline text-[11px] font-bold text-violet-300">(电脑可长按空格键)</span>
+        </button>
+
         <!-- 辅助三联大按钮：上一格 / 重听本格 / 画面回到当前格(F键) -->
         <div class="grid grid-cols-3 gap-2">
           <button id="btnPrevCell" class="py-2.5 px-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-100 font-bold text-xs sm:text-sm flex flex-col items-center justify-center gap-0.5 border border-slate-700 transition">
@@ -230,10 +256,7 @@
         </div>
       </div>
 
-      <button id="btnHoldTurbo" class="more-item select-none w-full py-2.5 rounded-xl bg-violet-500/20 hover:bg-violet-500/30 border border-violet-500/50 text-violet-200 font-black text-sm" style="touch-action:none;-webkit-user-select:none;-webkit-touch-callout:none">
-        ⚡ 按住 = 整体2倍速 <span class="hidden lg:inline text-[11px] font-bold text-violet-300">(电脑可长按空格键)</span>
-      </button>
-      <button id="btnToggleSettings" class="lg:hidden w-full py-1.5 rounded-xl bg-slate-800 border border-slate-700 text-slate-200 font-bold text-xs">⚙️ 更多：预估时间 / 2倍速 / 语速 / 停顿 / 走格（点开）</button>
+      <button id="btnToggleSettings" class="lg:hidden w-full py-1.5 rounded-xl bg-slate-800 border border-slate-700 text-slate-200 font-bold text-xs">⚙️ 更多：预估时间 / 语速 / 停顿 / 走格（点开）</button>
       <div id="settingsBlock" class="more-item flex flex-col gap-2.5">
 
       <!-- 3. 精确到 0.1 秒的读完停顿调节器 -->
@@ -2028,7 +2051,7 @@
         const asideEl = document.querySelector('aside');
         const open = asideEl.classList.toggle('more-open');
         document.getElementById('btnToggleSettings').textContent = open
-          ? '⚙️ 收起设置' : '⚙️ 更多：预估时间 / 2倍速 / 语速 / 停顿 / 走格（点开）';
+          ? '⚙️ 收起设置' : '⚙️ 更多：预估时间 / 语速 / 停顿 / 走格（点开）';
       });
 
       ['speechRateInput', 'autoSecondsInput', 'autoSecondsNumberInput', 'chkAutoNextSheet'].forEach(id => {
