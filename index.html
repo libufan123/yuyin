@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>工程检测·Excel红字语音速抄台 (V7 蓝牙耳机盲控+全端实战版)</title>
+  <title>工程检测·Excel红字语音速抄台 (V8 GitHub远程云控+蓝牙盲控版)</title>
   <script src="https://cdn.tailwindcss.com/3.4.17"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
@@ -77,9 +77,9 @@
 </head>
 <body class="bg-slate-950 text-slate-100 h-screen overflow-hidden flex flex-col selection:bg-amber-500 selection:text-slate-950">
 
-  <!-- 顶部紧凑导航栏（手机端与电脑端自适应） -->
+  <!-- 顶部超紧凑导航栏（把垂直空间最大限度让给大表格与实时看板） -->
   <header class="bg-slate-900 border-b border-slate-800 shrink-0 z-30">
-    <div class="max-w-[1920px] mx-auto px-3 py-2 flex flex-wrap items-center justify-between gap-2">
+    <div class="max-w-[1920px] mx-auto px-2.5 py-1.5 flex flex-wrap items-center justify-between gap-1.5">
       <div class="flex items-center gap-2">
         <div id="secretLogoTrigger" class="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-rose-500 flex items-center justify-center text-white font-black text-base sm:text-lg shadow cursor-pointer select-none">
           红
@@ -94,7 +94,7 @@
               🎧 蓝牙盲控+防息屏已开
             </span>
             <span id="licenseStatusBadge" class="px-2 py-0.5 text-[10px] sm:text-[11px] font-bold rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 cursor-pointer" title="点击查看或切换授权状态">
-              ✅ 已授权正版
+              🔒 试用版(免费试听前10格)
             </span>
           </div>
           <p id="watermarkDisplay" class="hidden sm:block text-[11px] text-slate-400">作者微信：RoadTest_AI ｜ 单击蓝牙耳机=暂停/连播 · 双击耳机/长按空格=2倍速 · 换列自动报列标题</p>
@@ -127,173 +127,156 @@
   </header>
 
   <!-- 核心响应式主工作区：
-       - 电脑端 (lg及以上)：左定宽操控台 (4/12) + 右全高大表 (8/12)
-       - 手机端 (小于lg)：上半屏看表格 (order-1, 占46%高) + 下半屏固定拇指操控台 (order-2, 占54%高)，看表时按钮永不滚走！ -->
-  <main class="flex-1 max-w-[1920px] w-full mx-auto px-2 sm:px-3 py-2 flex flex-col lg:grid lg:grid-cols-12 gap-2.5 overflow-hidden min-h-0">
+       - 桌面端 (lg及以上)：左侧紧凑固定宽操控台 (335px) + 右侧自适应全宽超大表格区 (占约 80%~100% 面积，支持一键全屏展开表格)
+       - 手机端 (小于lg)：上半屏大表格 (占 55% 高) + 下半屏零滚动紧凑操控台 (占 45% 高，【实时播报红字看板】置顶第一排！) -->
+  <main id="mainWorkspaceContainer" class="flex-1 max-w-[1920px] w-full mx-auto px-1.5 sm:px-2.5 py-1.5 flex flex-col lg:flex-row gap-2 overflow-hidden min-h-0">
 
-    <!-- ==================== 操控台 (电脑在左 lg:order-1，手机在下 order-2 拇指区) ==================== -->
-    <aside class="order-2 lg:order-1 h-[56%] lg:h-full lg:col-span-4 flex flex-col justify-start gap-2 bg-slate-900 border-2 border-slate-800 rounded-2xl p-2 sm:p-3 overflow-y-auto min-h-0 shadow-2xl">
+    <!-- ==================== 紧凑整合操控台 (电脑在左固定窄栏，手机在下，内部【实时播报数字】永远置顶第1位！) ==================== -->
+    <aside id="leftControlSidebar" class="order-2 lg:order-1 h-[45%] lg:h-full lg:w-[335px] xl:w-[355px] shrink-0 flex flex-col justify-between gap-1.5 bg-slate-900 border border-slate-800 rounded-2xl p-2 overflow-y-auto min-h-0 shadow-2xl transition-all duration-200">
       
-      <!-- 1. 【置顶第一排！】合二为一超巨型主按钮 + 四联按钮（手机端一进去无需任何下滑，第一眼直接按到！） -->
-      <div class="flex flex-col gap-1.5 shrink-0">
-        <!-- 超级合体主按钮：短按=自动连播/暂停；按住不放(>0.25s)=2倍速狂飙，松手恢复！ -->
-        <button id="btnAutoPlayToggle" class="w-full py-3 sm:py-4 px-3 rounded-2xl bg-emerald-500 hover:bg-emerald-400 active:scale-[0.99] text-slate-950 font-black text-base sm:text-xl flex flex-col items-center justify-center gap-0.5 shadow-xl shadow-emerald-500/20 transition select-none">
-          <div class="flex items-center gap-2">
-            <span id="mainBtnPrimaryText">▶️ 单击：开启自动连播</span>
-          </div>
-          <div id="autoIntervalLabel" class="text-[10px] sm:text-xs font-extrabold bg-slate-950/20 px-2.5 py-0.5 rounded-full">
-            ⚡ 按住此按钮 / 长按空格 = 2倍速 ｜ 🎧 单击耳机暂停 · 双击2倍速
-          </div>
-        </button>
-
-        <!-- 辅助四联大按钮：上一格 / 下一格 / 重听本格 / 回到当前位置(F键) -->
-        <div class="grid grid-cols-4 gap-1.5">
-          <button id="btnPrevCell" class="py-2 px-1 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-100 font-bold text-xs flex flex-col items-center justify-center border border-slate-700 transition">
-            <span>⬅️ 上一格</span>
-            <span class="text-[10px] text-slate-400">(←/三击)</span>
-          </button>
-
-          <button id="btnNextCell" class="py-2 px-1 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs flex flex-col items-center justify-center shadow transition">
-            <span>下一格 ➡️</span>
-            <span id="nextKeyHintLabel" class="text-[10px] text-slate-900 font-bold">(↓ 或 →键)</span>
-          </button>
-
-          <button id="btnReplayVoice" class="py-2 px-1 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-300 font-bold text-xs flex flex-col items-center justify-center border border-slate-700 transition">
-            <span>🔊 重听</span>
-            <span class="text-[10px] text-slate-400">(R键)</span>
-          </button>
-
-          <button id="btnFocusCurrentCell" class="py-2 px-1 rounded-xl bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 font-extrabold text-xs flex flex-col items-center justify-center border border-blue-500/40 transition">
-            <span>🎯 居中定位</span>
-            <span class="text-[10px] text-blue-200">(F键·适屏)</span>
-          </button>
-        </div>
-      </div>
-
-      <!-- 2. 红字大看板（左：⬅️ 上一格已抄信息 ｜ 右：🔴 当前手抄红字） -->
-      <div class="bg-slate-950 border-2 border-amber-500/70 rounded-2xl p-2.5 flex flex-col gap-1.5 shadow-lg shrink-0">
+      <!-- 【第 1 顺位：最顶端置顶！】实时播报红字大看板（一睁眼就在最上面，绝不往下滑！） -->
+      <div class="bg-slate-950 border-2 border-amber-500/80 rounded-xl p-2 flex flex-col gap-1 shadow-lg shrink-0">
         
-        <!-- 顶部行：当前表名 + 换列真标题徽章 + 格子进度 -->
+        <!-- 看板顶栏：当前表名 + 列标题 + 项目名 + 进度 + 2倍速锁 -->
         <div class="flex flex-wrap items-center justify-between gap-1">
-          <div class="flex flex-wrap items-center gap-1">
-            <span id="hudSheetBadge" class="px-1.5 py-0.5 rounded bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 font-bold text-[10px] sm:text-[11px]">
+          <div class="flex flex-wrap items-center gap-1 min-w-0">
+            <span id="hudSheetBadge" class="px-1.5 py-0.5 rounded bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 font-bold text-[10px] truncate max-w-[90px]">
               表1-压实度
             </span>
-            <span id="hudColBadge" class="px-1.5 py-0.5 rounded bg-blue-500/20 border border-blue-500/40 text-blue-300 font-bold text-[10px] sm:text-[11px]">
+            <span id="hudColBadge" class="px-1.5 py-0.5 rounded bg-blue-500/20 border border-blue-500/40 text-blue-300 font-bold text-[10px] truncate">
               列标题：测点1
             </span>
-            <span id="hudRowBadge" class="px-1.5 py-0.5 rounded bg-amber-500/20 border border-amber-500/40 text-amber-300 font-bold text-[10px] sm:text-[11px]">
+            <span id="hudRowBadge" class="px-1.5 py-0.5 rounded bg-amber-500/20 border border-amber-500/40 text-amber-300 font-bold text-[10px] truncate">
               项目：桩号
             </span>
           </div>
-          <div class="text-xs font-mono text-slate-300">
-            进度 <span id="hudProgressText" class="text-rose-400 font-black">1/24</span>
+          <div class="flex items-center gap-1 shrink-0">
+            <span class="text-[11px] font-mono text-slate-300">
+              <span id="hudProgressText" class="text-rose-400 font-black">1/24</span>
+            </span>
+            <button id="btnToggle2xLock" class="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-[10px] border border-slate-700 transition shrink-0">
+              ⚡ 2倍速锁: 关
+            </button>
           </div>
         </div>
 
-        <!-- 中间核心对照行：【左侧显示上一格信息】 + 【右侧显示当前手抄红字】 -->
-        <div class="py-2 px-2.5 bg-slate-900/90 rounded-xl border border-slate-800 grid grid-cols-12 items-center gap-2">
-          <!-- 左侧 (占 5/12)：上一格信息（方便随时核对刚才写下的数！） -->
-          <div class="col-span-5 border-r border-slate-800 pr-2 flex flex-col justify-center min-w-0">
-            <div class="text-[10px] text-slate-400 font-semibold flex items-center gap-1">
-              <span>⬅️ 上一格信息：</span>
-            </div>
-            <div id="hudPrevLabel" class="text-xs font-bold text-slate-300 truncate mt-0.5">
-              (当前为第1格)
-            </div>
-            <div id="hudPrevValue" class="text-lg sm:text-2xl font-black text-amber-300/90 font-mono truncate">
-              —
-            </div>
-            <div id="hudLineChangeAlert" class="mt-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300 hidden truncate">
-              ⚠️ 本格已换列
+        <!-- 核心数字大屏：【左：⬅️ 上一格已抄核对】 + 【右：🔴 当前实时播报红字（超大醒目）】 -->
+        <div class="py-1.5 px-2 bg-slate-900/95 rounded-lg border border-slate-800 grid grid-cols-12 items-center gap-1.5">
+          <!-- 左侧 (4/12)：上一格信息 -->
+          <div class="col-span-4 border-r border-slate-800 pr-1.5 flex flex-col justify-center min-w-0">
+            <div class="text-[10px] text-slate-400 font-semibold truncate">⬅️ 上一格：</div>
+            <div id="hudPrevLabel" class="text-[10px] font-bold text-slate-300 truncate">(第1格)</div>
+            <div id="hudPrevValue" class="text-base sm:text-xl font-black text-amber-300/90 font-mono truncate leading-tight">—</div>
+            <div id="hudLineChangeAlert" class="px-1 py-0.2 rounded text-[9px] font-bold bg-emerald-500/20 text-emerald-300 hidden truncate">
+              ⚠️已换列
             </div>
           </div>
 
-          <!-- 右侧 (占 7/12)：当前手抄红字超大数值 -->
-          <div class="col-span-7 pl-1 flex flex-col justify-center min-w-0">
-            <div id="hudSpokenPreview" class="text-[10px] sm:text-xs font-bold text-emerald-400 truncate">
+          <!-- 右侧 (8/12)：当前手抄红字超大数值 -->
+          <div class="col-span-8 pl-1 flex flex-col justify-center min-w-0">
+            <div id="hudSpokenPreview" class="text-[10px] font-bold text-emerald-400 truncate">
               🔊 播报：“桩号，K零加零二零左”
             </div>
-            <div id="hudMainValue" class="text-3xl sm:text-5xl font-black tracking-tight text-rose-400 font-mono select-all truncate mt-0.5">
+            <div id="hudMainValue" class="text-2xl sm:text-4xl font-black tracking-tight text-rose-400 font-mono select-all truncate leading-tight">
               K0+020左
             </div>
           </div>
         </div>
 
-        <!-- 播完【当前工作表】剩余时间 & 播完【全文件所有工作表】总剩余时间 -->
-        <div class="grid grid-cols-2 gap-2 bg-slate-900/70 p-1.5 px-2 rounded-xl border border-slate-800/90 text-xs">
-          <div class="flex flex-col">
-            <span class="text-[10px] text-slate-400">⏱️ 播完当前表还需：</span>
-            <span id="etaCurrentSheetText" class="font-mono font-black text-amber-300 text-xs sm:text-sm">
-              约 0分 42秒 (剩24格)
-            </span>
+        <!-- 紧凑底部行：当前表剩余时间 ｜ 全文件剩余时间 ｜ 实时倒计时状态 -->
+        <div class="grid grid-cols-2 gap-1.5 bg-slate-900/70 px-2 py-1 rounded-lg border border-slate-800/80 text-[10px]">
+          <div class="flex items-center justify-between gap-1 truncate">
+            <span class="text-slate-400 shrink-0">⏱️本表:</span>
+            <span id="etaCurrentSheetText" class="font-mono font-black text-amber-300 truncate">约 42秒</span>
           </div>
-          <div class="flex flex-col border-l border-slate-800 pl-2">
-            <span class="text-[10px] text-slate-400">📚 播完全文件还需：</span>
-            <span id="etaAllSheetsText" class="font-mono font-black text-emerald-300 text-xs sm:text-sm">
-              约 2分 35秒 (共4表)
-            </span>
+          <div class="flex items-center justify-between gap-1 border-l border-slate-800 pl-1.5 truncate">
+            <span class="text-slate-400 shrink-0">📚全本:</span>
+            <span id="etaAllSheetsText" class="font-mono font-black text-emerald-300 truncate">约 2分35秒</span>
           </div>
         </div>
 
-        <!-- 实时语音与留白倒计时进度条 -->
-        <div class="flex flex-col gap-1">
-          <div class="flex items-center justify-between text-[11px]">
-            <span id="hudSpeechStatusBadge" class="font-bold px-2 py-0.5 rounded bg-slate-800 text-slate-300 truncate">
-              ⏸️ 单击顶部大按钮/空格/耳机连播
-            </span>
-            <button id="btnToggle2xLock" class="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-[10px] border border-slate-700 transition shrink-0">
-              ⚡ 2倍速锁: 关
-            </button>
-          </div>
-          <div id="autoCountdownBarWrap" class="hidden w-full bg-slate-900 rounded-full h-1.5 overflow-hidden border border-slate-800">
-            <div id="autoCountdownBar" class="bg-gradient-to-r from-emerald-400 to-amber-400 h-full transition-all duration-75" style="width: 100%"></div>
-          </div>
+        <div class="flex items-center justify-between gap-1 text-[10px] h-5 shrink-0">
+          <span id="hudSpeechStatusBadge" class="font-bold px-1.5 h-5 leading-5 rounded bg-slate-800 text-slate-300 truncate w-full text-center block">
+            ⏸️ 单击下方绿键/空格/耳机连播
+          </span>
+        </div>
+        <!-- 进度条改为页面最顶缘 2px 悬浮细线，彻底不占卡片高度，按钮永远不跳动 -->
+        <div id="autoCountdownBarWrap" class="hidden fixed top-0 left-0 right-0 z-50 h-0.5 bg-transparent pointer-events-none">
+          <div id="autoCountdownBar" class="bg-gradient-to-r from-emerald-400 to-amber-400 h-full transition-all duration-75" style="width: 100%"></div>
         </div>
       </div>
 
-      <!-- 3. 默认语速 1.2x & 默认停顿 0.7秒 精密调节区（需求 #3） -->
-      <div class="bg-slate-950 p-2.5 sm:p-3 rounded-xl border border-slate-800 flex flex-col gap-2 text-xs">
-        
-        <!-- 停顿秒数 (默认 0.7s, 0.1s 精度) -->
-        <div class="flex items-center justify-between gap-2">
-          <span class="font-bold text-emerald-300 shrink-0">⏱️ 读完停顿(默认0.7s)：</span>
-          <div class="flex items-center gap-1">
-            <button id="btnPauseMinus01" class="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs">-0.1</button>
-            <input id="autoSecondsNumberInput" type="number" min="0.1" max="10.0" step="0.1" value="0.7" class="w-14 bg-slate-900 border border-emerald-500/50 rounded px-1 py-0.5 text-center font-mono font-black text-emerald-400 text-xs sm:text-sm focus:outline-none" />
+      <!-- 【第 2 顺位：核心操控按钮组】紧凑型主按钮 + 四联方向键 -->
+      <div class="flex flex-col gap-1 shrink-0">
+        <!-- 主控连播按钮（高度精简，保持极佳点击手感） -->
+        <button id="btnAutoPlayToggle" class="w-full py-2 sm:py-2.5 px-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 active:scale-[0.99] text-slate-950 font-black text-sm sm:text-base flex flex-col items-center justify-center shadow-lg shadow-emerald-500/20 transition select-none">
+          <span id="mainBtnPrimaryText">▶️ 单击：开启自动连播</span>
+          <span id="autoIntervalLabel" class="text-[10px] font-extrabold opacity-85">
+            ⚡ 按住此键/长按空格=2倍速 ｜ 🎧 单击耳机暂停
+          </span>
+        </button>
+
+        <!-- 辅助四联按钮（单行紧凑排版） -->
+        <div class="grid grid-cols-4 gap-1">
+          <button id="btnPrevCell" class="py-1.5 px-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-100 font-bold text-[11px] flex items-center justify-center gap-0.5 border border-slate-700 transition" title="快捷键：← 或 ↑">
+            <span>⬅️ 上一格</span> <span class="hidden">(←/三击)</span>
+          </button>
+
+          <button id="btnNextCell" class="py-1.5 px-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-[11px] flex items-center justify-center gap-0.5 shadow transition" title="快捷键：↓ 或 →">
+            <span>下一格 ➡️</span> <span id="nextKeyHintLabel" class="hidden">(↓ 或 →键)</span>
+          </button>
+
+          <button id="btnReplayVoice" class="py-1.5 px-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-300 font-bold text-[11px] flex items-center justify-center gap-0.5 border border-slate-700 transition" title="快捷键：R">
+            <span>🔊 重听</span> <span class="hidden">(R键)</span>
+          </button>
+
+          <button id="btnFocusCurrentCell" class="py-1.5 px-1 rounded-lg bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 font-extrabold text-[11px] flex items-center justify-center gap-0.5 border border-blue-500/40 transition" title="快捷键：F">
+            <span>🎯 居中定位</span> <span class="hidden">(F键·适屏)</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 【第 3 顺位：超紧凑常驻调速与播报设置】停顿 & 语速同屏直调 -->
+      <div class="bg-slate-950 p-2 rounded-xl border border-slate-800 flex flex-col gap-1.5 text-[11px] shrink-0">
+        <!-- 停顿 与 语速 双栏紧凑并排/上下紧凑排列 -->
+        <div class="flex items-center justify-between gap-1">
+          <span class="font-bold text-emerald-300 shrink-0">⏱️停顿:</span>
+          <div class="flex items-center gap-0.5">
+            <button id="btnPauseMinus01" class="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-white font-bold border border-slate-700">-0.1</button>
+            <input id="autoSecondsNumberInput" type="number" min="0.1" max="10.0" step="0.1" value="0.7" class="w-11 bg-slate-900 border border-emerald-500/60 rounded px-0.5 py-0.5 text-center font-mono font-black text-emerald-400 text-[11px] focus:outline-none" />
             <span class="text-emerald-400 font-bold">s</span>
-            <button id="btnPausePlus01" class="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs">+0.1</button>
+            <button id="btnPausePlus01" class="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-white font-bold border border-slate-700">+0.1</button>
           </div>
-          <input id="autoSecondsInput" type="range" min="0.1" max="5.0" step="0.1" value="0.7" class="w-20 sm:w-24 accent-emerald-500 cursor-pointer" />
+          <input id="autoSecondsInput" type="range" min="0.1" max="5.0" step="0.1" value="0.7" class="w-16 accent-emerald-500 cursor-pointer" />
         </div>
 
-        <!-- 语速调节 (默认 1.2x) + 合并去重开关 -->
-        <div class="flex flex-wrap items-center justify-between gap-2 pt-1.5 border-t border-slate-800/80">
-          <div class="flex items-center gap-1.5">
-            <span class="text-amber-300 font-bold">🗣️ 语速(默认1.2x):</span>
-            <input id="speechRateInput" type="range" min="0.8" max="2.0" step="0.1" value="1.2" class="w-20 accent-amber-500 cursor-pointer" />
-            <span id="speechRateLabel" class="font-mono font-black text-amber-300">1.2x</span>
+        <div class="flex items-center justify-between gap-1 pt-1 border-t border-slate-800/80">
+          <div class="flex items-center gap-0.5">
+            <span class="text-amber-300 font-bold shrink-0">🗣️语速:</span>
+            <button id="btnRateMinus01" class="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-white font-bold border border-slate-700">-0.1</button>
+            <span id="speechRateLabel" class="font-mono font-black text-amber-300 px-1">1.2x</span>
+            <button id="btnRatePlus01" class="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-white font-bold border border-slate-700">+0.1</button>
+            <input id="speechRateInput" type="range" min="0.8" max="2.5" step="0.1" value="1.2" class="w-14 accent-amber-500 cursor-pointer" />
           </div>
-
-          <label class="flex items-center gap-1 cursor-pointer text-slate-300 font-semibold">
-            <input id="chkDedupMerged" type="checkbox" class="accent-amber-500 rounded w-3.5 h-3.5" />
-            <span>合并格去重</span>
+          <label class="flex items-center gap-1 cursor-pointer text-slate-300 font-semibold shrink-0">
+            <input id="chkDedupMerged" type="checkbox" class="accent-amber-500 rounded w-3 h-3" />
+            <span class="text-[10px]">合并去重</span>
           </label>
         </div>
 
-        <!-- 方向与播报模式 -->
-        <div class="grid grid-cols-3 gap-1.5 pt-1.5 border-t border-slate-800/80">
-          <select id="traversalOrderSelect" class="bg-slate-900 border border-slate-700 rounded-lg px-2 py-1 font-bold text-amber-400 text-[11px]">
-            <option value="col" selected>⬇️ 按列往下读</option>
-            <option value="row">➡️ 按行往右读</option>
+        <!-- 走格方向与口令模式（单行三格） -->
+        <div class="grid grid-cols-3 gap-1 pt-1 border-t border-slate-800/80">
+          <select id="traversalOrderSelect" class="bg-slate-900 border border-slate-700 rounded px-1 py-0.5 font-bold text-amber-400 text-[10px]">
+            <option value="col" selected>⬇️按列往下读</option>
+            <option value="row">➡️按行往右读</option>
           </select>
-          <select id="voiceDetailSelect" class="bg-slate-900 border border-slate-700 rounded-lg px-2 py-1 font-bold text-emerald-400 text-[11px]">
-            <option value="colTitleThenValueOnly" selected>换列报标题+纯报数</option>
+          <select id="voiceDetailSelect" class="bg-slate-900 border border-slate-700 rounded px-1 py-0.5 font-bold text-emerald-400 text-[10px]">
+            <option value="colTitleThenValueOnly" selected>换列标题+报数</option>
             <option value="pureDigitsOnly">全程纯报数字</option>
-            <option value="shortTelegraph">每格都报左侧名+数</option>
+            <option value="shortTelegraph">每格报左名+数</option>
           </select>
-          <select id="spacebarModeSelect" class="bg-slate-900 border border-slate-700 rounded-lg px-2 py-1 font-semibold text-slate-300 text-[11px]">
-            <option value="toggleAuto" selected>空格=连播/长按2x</option>
+          <select id="spacebarModeSelect" class="bg-slate-900 border border-slate-700 rounded px-1 py-0.5 font-semibold text-slate-300 text-[10px]">
+            <option value="toggleAuto" selected>空格=连播/2x</option>
             <option value="nextCell">空格=下一格</option>
           </select>
         </div>
@@ -301,65 +284,60 @@
 
     </aside>
 
-    <!-- ==================== 大表格视图区 (电脑在右 lg:order-2，手机在上 order-1 占46%高) ==================== -->
-    <section class="order-1 lg:order-2 h-[44%] lg:h-full lg:col-span-8 bg-slate-900 border-2 border-slate-800 rounded-2xl p-2.5 sm:p-3.5 flex flex-col gap-2 overflow-hidden min-h-0 shadow-2xl">
+    <!-- ==================== 超大表格视图区 (电脑端占 80%~100% 宽度，手机端占 55% 高度，单行紧凑工具栏把空间全留给表格！) ==================== -->
+    <section id="rightTableSection" class="order-1 lg:order-2 h-[55%] lg:h-full flex-1 min-w-0 bg-slate-900 border border-slate-800 rounded-2xl p-2 flex flex-col gap-1.5 overflow-hidden min-h-0 shadow-2xl">
       
-      <!-- 顶部工具栏：多工作表防遮挡切换（下拉菜单 + 自动居中标签栏） + 缩放条 -->
-      <div class="flex flex-wrap items-center justify-between gap-1.5 pb-2 border-b border-slate-800 shrink-0">
+      <!-- 二合一超紧凑工具栏：左选工作表 + 中间缩放定位 + 右侧增删红字/全屏展表（省掉多余副标题行，把高度全让给表格！） -->
+      <div class="flex flex-wrap items-center justify-between gap-1.5 pb-1.5 border-b border-slate-800 shrink-0">
         
-        <!-- 需求 #1：多工作表切换防遮挡（下拉一览全表 + 自动滚动居中标签栏 + 上下表按钮） -->
-        <div class="flex flex-wrap items-center gap-1.5 min-w-0 flex-1">
-          <button id="btnPrevSheet" class="px-2.5 py-1 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs border border-slate-600 transition shrink-0">
+        <!-- 左侧：工作表切换 + 自动翻表 -->
+        <div class="flex flex-wrap items-center gap-1 min-w-0">
+          <button id="btnToggleExpandTable" class="hidden lg:inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 border border-indigo-500/40 font-extrabold text-[11px] transition shrink-0" title="收起或展开左侧操控台，让表格铺满全屏">
+            <span>↔️ 放大表格区</span>
+          </button>
+
+          <button id="btnPrevSheet" class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-bold text-[11px] border border-slate-600 transition shrink-0">
             ⏮️ 上一表
           </button>
 
-          <!-- 新增：下拉速选工作表（无论点多少下，永远一眼看到当前是第几张表、叫什么名字！） -->
-          <select id="sheetDropdownSelect" class="bg-amber-500 text-slate-950 font-black text-xs rounded-xl px-2.5 py-1.5 focus:outline-none cursor-pointer shadow shrink-0 max-w-[170px] sm:max-w-[220px]">
+          <select id="sheetDropdownSelect" class="bg-amber-500 text-slate-950 font-black text-[11px] rounded-lg px-2 py-1 focus:outline-none cursor-pointer shadow shrink-0 max-w-[165px] sm:max-w-[220px]">
             <!-- JS 填充 -->
           </select>
 
-          <!-- 自动丝滑滚动居中的标签栏 -->
-          <div id="sheetTabsBar" class="hidden xl:flex items-center gap-1 overflow-x-auto no-scrollbar max-w-xs bg-slate-950 p-1 rounded-xl border border-slate-800">
+          <div id="sheetTabsBar" class="hidden 2xl:flex items-center gap-1 overflow-x-auto no-scrollbar max-w-xs bg-slate-950 p-0.5 rounded-lg border border-slate-800">
             <!-- JS 填充 -->
           </div>
 
-          <button id="btnNextSheet" class="px-2.5 py-1 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 font-black text-xs transition shrink-0">
+          <button id="btnNextSheet" class="px-2 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 font-black text-[11px] transition shrink-0">
             下一表 ⏭️
           </button>
 
-          <span id="sheetCounterBadge" class="hidden sm:inline text-xs font-mono text-slate-400 shrink-0">(1/4)</span>
+          <span id="sheetCounterBadge" class="hidden sm:inline text-[11px] font-mono text-slate-400 shrink-0">(1/4)</span>
 
-          <label class="hidden md:flex items-center gap-1 text-[11px] text-emerald-300 font-semibold cursor-pointer bg-slate-950 px-2 py-1 rounded-lg border border-slate-800 shrink-0">
+          <label class="hidden xl:flex items-center gap-1 text-[11px] text-emerald-300 font-semibold cursor-pointer bg-slate-950 px-1.5 py-0.5 rounded-lg border border-slate-800 shrink-0">
             <input id="chkAutoNextSheet" type="checkbox" checked class="accent-emerald-500 rounded" />
-            <span>自动连翻下表</span>
+            <span>连翻下表</span>
           </label>
         </div>
 
-        <!-- 表格缩放控制条 + 回到当前位置按钮 -->
-        <div class="flex items-center gap-1 bg-slate-950 px-2 py-1 rounded-xl border border-slate-700 shrink-0">
-          <button id="btnLocateCurrentRight" class="px-2 py-0.5 rounded-lg bg-blue-500 hover:bg-blue-400 text-slate-950 font-black text-[11px] sm:text-xs transition shadow" title="回到当前播放格并自动调成合适缩放比例">
-            🎯 回到当前格
-          </button>
-          <button id="btnZoomOut" class="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-white font-black text-xs">➖</button>
-          <input id="zoomSliderInput" type="range" min="35" max="140" step="5" value="100" class="hidden sm:inline w-16 accent-amber-500 cursor-pointer" />
-          <span id="zoomPercentLabel" class="text-[11px] font-mono font-black text-amber-300 w-9 text-center">100%</span>
-          <button id="btnZoomIn" class="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-white font-black text-xs">➕</button>
-          <button id="btnZoomFitAll" class="px-2 py-0.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-[11px] font-bold transition">
-            📐 全表
-          </button>
-        </div>
-      </div>
+        <!-- 右侧：居中定位 + 缩放 + 增删红字 + 回第1格（全部浓缩在一排） -->
+        <div class="flex flex-wrap items-center gap-1 shrink-0">
+          <span id="currentTableTitle" class="hidden 2xl:inline text-[11px] font-bold text-slate-400 truncate max-w-[180px]">表1：压实度原始记录表</span>
+          <span id="uploadStatusHint" class="hidden">🔴 点任意格从该处开读</span>
 
-      <!-- 表格副标题与快捷操作 -->
-      <div class="flex flex-wrap items-center justify-between gap-1.5 text-xs shrink-0">
-        <div class="flex items-center gap-2 truncate">
-          <h3 id="currentTableTitle" class="text-xs sm:text-sm font-bold text-white truncate">表1：压实度（灌砂法）原始记录表</h3>
-          <span id="uploadStatusHint" class="hidden sm:inline px-2 py-0.5 rounded bg-rose-500/15 text-rose-300 border border-rose-500/30 text-[11px] font-semibold">
-            🔴 点击任意格可直接从该处开始读
-          </span>
-        </div>
+          <div class="flex items-center gap-1 bg-slate-950 px-1.5 py-0.5 rounded-lg border border-slate-700">
+            <button id="btnLocateCurrentRight" class="px-1.5 py-0.5 rounded bg-blue-500 hover:bg-blue-400 text-slate-950 font-black text-[11px] transition" title="回到当前播放格并自动调成合适缩放比例">
+              🎯 回到当前格
+            </button>
+            <button id="btnZoomOut" class="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-white font-black text-[11px]">➖</button>
+            <input id="zoomSliderInput" type="range" min="35" max="140" step="5" value="100" class="hidden sm:inline w-14 accent-amber-500 cursor-pointer" />
+            <span id="zoomPercentLabel" class="text-[11px] font-mono font-black text-amber-300 w-8 text-center">100%</span>
+            <button id="btnZoomIn" class="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-white font-black text-[11px]">➕</button>
+            <button id="btnZoomFitAll" class="px-1.5 py-0.5 rounded bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-[11px] font-bold transition">
+              📐 全表
+            </button>
+          </div>
 
-        <div class="flex items-center gap-1.5 shrink-0">
           <button id="btnToggleRedBrushMode" class="px-2 py-0.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-rose-300 border border-rose-500/40 text-[11px] font-semibold transition">
             🖌️ 增删红字
           </button>
@@ -375,7 +353,7 @@
         <button id="btnExitRedBrush" class="px-2 py-0.5 rounded bg-rose-500 text-slate-950 font-black">完成</button>
       </div>
 
-      <!-- 独立滚动的 1:1 表格视口 -->
+      <!-- 独立滚动的 1:1 超大表格视口 -->
       <div id="tableScrollViewport" class="flex-1 overflow-auto rounded-xl border border-slate-800 bg-slate-950 p-1 relative min-h-0">
         <div id="zoomTableWrapper">
           <table id="mainDataTable" class="w-full text-left border-collapse">
@@ -416,42 +394,110 @@
       </div>
 
       <div id="authorSecretContent" class="hidden flex-col gap-3">
-      <div class="bg-slate-950 border border-emerald-500/40 rounded-xl p-4 space-y-3 text-xs sm:text-sm">
-        <div class="flex items-center justify-between">
-          <span class="font-bold text-emerald-400">🔐 一机一码算号器（防闲鱼二道贩子倒卖）</span>
+      <!-- 模块 A：4档有效期一机一码算号器 -->
+      <div class="bg-slate-950 border border-emerald-500/40 rounded-xl p-3.5 space-y-2.5 text-xs">
+        <div class="flex flex-wrap items-center justify-between gap-1">
+          <span class="font-bold text-emerald-400 text-sm">🔐 一机一码限时/永久算号器（支持到期自动锁死）</span>
           <span class="text-xs text-slate-400">本机设备码：<code id="adminLocalDeviceCode" class="text-amber-300 font-bold">RD-7492</code></span>
         </div>
-        <div class="grid grid-cols-1 sm:grid-cols-12 gap-2 items-center">
-          <div class="sm:col-span-5">
-            <label class="text-xs text-slate-400 block mb-1">输入买家发来的设备码：</label>
-            <input id="keygenInputDeviceCode" type="text" value="RD-7492" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 font-mono text-white uppercase" />
+        <div class="grid grid-cols-1 sm:grid-cols-12 gap-2 items-end">
+          <div class="sm:col-span-4">
+            <label class="text-[11px] text-slate-400 block mb-1">1. 输入同事/买家设备码：</label>
+            <input id="keygenInputDeviceCode" type="text" value="RD-7492" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 font-mono text-white uppercase" />
           </div>
-          <div class="sm:col-span-3 pt-4 sm:pt-5">
-            <button id="btnCalculateLicense" class="w-full py-2 px-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs">
+          <div class="sm:col-span-4">
+            <label class="text-[11px] text-slate-400 block mb-1">2. 选择授权有效期档位：</label>
+            <select id="keygenDurationSelect" class="w-full bg-slate-900 border border-amber-500/50 rounded-lg px-2 py-1.5 font-bold text-amber-300">
+              <option value="1">⏱️ 1天体验码 (明天到期)</option>
+              <option value="7" selected>📅 7天周卡 (7天后到期)</option>
+              <option value="30">🗓️ 30天月卡 (30天后到期)</option>
+              <option value="perm">♾️ 永久授权码 (长期有效)</option>
+            </select>
+          </div>
+          <div class="sm:col-span-4">
+            <button id="btnCalculateLicense" class="w-full py-1.5 px-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs">
               生成卡密 ➡️
             </button>
           </div>
-          <div class="sm:col-span-4">
-            <label class="text-xs text-slate-400 block mb-1">专属激活码(点击复制)：</label>
-            <input id="keygenOutputLicense" type="text" readonly value="AK-5918-PRO" class="w-full bg-emerald-950/50 border border-emerald-500/50 rounded-lg px-3 py-2 font-mono font-bold text-amber-300 cursor-pointer select-all" />
-          </div>
+        </div>
+        <div>
+          <label class="text-[11px] text-slate-400 block mb-1">生成的专属激活码（自带防篡改到期日签名，点击即可复制）：</label>
+          <input id="keygenOutputLicense" type="text" readonly value="AK-5918-PRO" class="w-full bg-emerald-950/50 border border-emerald-500/50 rounded-lg px-3 py-1.5 font-mono font-black text-sm text-amber-300 cursor-pointer select-all text-center" />
         </div>
       </div>
 
-      <div class="space-y-2.5 bg-slate-950 p-4 rounded-xl border border-slate-800 text-xs sm:text-sm">
-        <div>
-          <label class="text-slate-400 block mb-1 text-xs">软件顶部标题：</label>
-          <input id="inputBrandTitle" type="text" value="工程检测·Excel红字语音速抄台" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-white" />
+      <!-- 模块 B：GitHub auth.json 远程生杀大权配置器 -->
+      <div class="bg-slate-950 border border-blue-500/40 rounded-xl p-3.5 space-y-2.5 text-xs">
+        <div class="flex flex-wrap items-center justify-between gap-1">
+          <span class="font-bold text-blue-400 text-sm">☁️ GitHub (auth.json) 远程控制名单生成器</span>
+          <span class="text-[11px] text-slate-400">修改后复制粘贴到 GitHub 仓库的 <code class="text-amber-300">auth.json</code> 即可全网生效</span>
         </div>
-        <div>
-          <label class="text-slate-400 block mb-1 text-xs">顶部防伪签名/微信号水印：</label>
-          <input id="inputWatermark" type="text" value="作者微信：RoadTest_AI ｜ 单击蓝牙耳机=暂停/连播 · 双击耳机/长按空格=2倍速 · 换列自动报列标题" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-amber-300" />
+
+        <div class="flex flex-wrap items-center justify-between gap-2 bg-slate-900 p-2 rounded-lg border border-slate-800">
+          <label class="flex items-center gap-1.5 cursor-pointer font-bold text-emerald-300">
+            <input id="chkGlobalEnable" type="checkbox" checked class="accent-emerald-500 w-4 h-4 rounded" />
+            <span>全员总开关 (globalEnable，取消勾选则全网所有人立刻停用)</span>
+          </label>
+          <div class="flex items-center gap-1">
+            <span class="text-slate-400">免费试听格数:</span>
+            <input id="inputFreeTrialCells" type="number" min="0" max="50" value="10" class="w-12 bg-slate-950 border border-slate-700 rounded px-1.5 py-0.5 text-center font-mono text-amber-300 font-bold" />
+          </div>
+        </div>
+
+        <!-- 快速添加/封禁同事设备码 -->
+        <div class="grid grid-cols-1 sm:grid-cols-12 gap-1.5 items-end bg-slate-900/70 p-2 rounded-lg border border-slate-800">
+          <div class="sm:col-span-3">
+            <label class="text-[10px] text-slate-400 block">设备码(如 RD-7492)</label>
+            <input id="remoteAddDeviceInput" type="text" placeholder="RD-XXXX" class="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 font-mono text-white uppercase" />
+          </div>
+          <div class="sm:col-span-3">
+            <label class="text-[10px] text-slate-400 block">同事姓名/备注</label>
+            <input id="remoteAddNameInput" type="text" placeholder="如：同事小张" class="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-white" />
+          </div>
+          <div class="sm:col-span-3">
+            <label class="text-[10px] text-slate-400 block">权限状态</label>
+            <select id="remoteAddStatusSelect" class="w-full bg-slate-950 border border-slate-700 rounded px-1.5 py-1 font-bold text-emerald-400">
+              <option value="allow">✅ 白名单免密放行</option>
+              <option value="block">⛔ 黑名单远程封杀</option>
+            </select>
+          </div>
+          <div class="sm:col-span-3">
+            <button id="btnAddRemoteRule" class="w-full py-1 px-2 rounded bg-blue-500 hover:bg-blue-400 text-slate-950 font-black">
+              ➕ 写入名单
+            </button>
+          </div>
+        </div>
+
+        <div id="remoteRulesListContainer" class="max-h-28 overflow-y-auto space-y-1 bg-slate-900 p-2 rounded-lg border border-slate-800 font-mono text-[11px]">
+          <!-- 动态渲染当前黑白名单 -->
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2">
+          <button id="btnCopyAuthJson" class="flex-1 py-2 px-3 rounded-lg bg-blue-500 hover:bg-blue-400 text-slate-950 font-black text-xs">
+            📋 一键复制最新 auth.json 代码 (去GitHub粘贴)
+          </button>
+          <button id="btnDownloadAuthJson" class="py-2 px-3 rounded-lg bg-slate-800 hover:bg-slate-700 text-blue-300 border border-blue-500/40 font-bold text-xs">
+            💾 下载 auth.json 文件
+          </button>
+        </div>
+      </div>
+
+      <div class="space-y-2 bg-slate-950 p-3.5 rounded-xl border border-slate-800 text-xs">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <div>
+            <label class="text-slate-400 block mb-1 text-[11px]">软件顶部标题：</label>
+            <input id="inputBrandTitle" type="text" value="工程检测·Excel红字语音速抄台" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1 text-white" />
+          </div>
+          <div>
+            <label class="text-slate-400 block mb-1 text-[11px]">顶部防伪签名/微信号水印：</label>
+            <input id="inputWatermark" type="text" value="作者微信：RoadTest_AI ｜ 单击蓝牙耳机=暂停/连播 · 双击耳机/长按空格=2倍速 · 换列自动报列标题" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1 text-amber-300" />
+          </div>
         </div>
         <div class="flex flex-wrap items-center justify-between gap-2 pt-1">
-          <button id="btnSimulateUnlicensed" class="px-3 py-2 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 font-bold text-xs">
-            🔒 切换为“未激活访客状态”(测试试听3格后拦截)
+          <button id="btnSimulateUnlicensed" class="px-3 py-1.5 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 font-bold text-xs">
+            🔒 切换为“未激活同事状态”(测试试听10格后拦截)
           </button>
-          <button id="btnSaveBranding" class="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs sm:text-sm">
+          <button id="btnSaveBranding" class="px-4 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs">
             ✅ 保存水印设置
           </button>
         </div>
@@ -734,8 +780,49 @@
     let calibratedMsPerCharAt1x = 235;
 
     let localDeviceCode = "RD-7492";
-    let isLicenseActivated = true; // 默认为您本人激活状态；买家未激活时试听前3格后自动弹窗拦截
+    let isLicenseActivated = false; // 默认未激活：普通同事打开可免费试听前10格，第11格自动弹窗拦截！
+    let isAuthorMaster = false;     // 作者本人输入 MASTER999 后开启最高离线/管理特权
+    let licenseBadgeDetail = "";    // 显示有效期或云端白名单备注
+    let freeTrialCellsLimit = 10;   // 默认免费试听前 10 格
+    let trialListenedIndices = new Set(); // 记录未激活状态下已试听过的格子，满 10 格或超过第 10 格立即拦截
+    let remoteBlockReason = "";     // 若被 GitHub auth.json 封禁、总开关关闭或离线另存为，记录拦截原因
     let wakeLockSentinel = null;
+
+    // 默认云端 auth.json 结构（与仓库根目录下的 auth.json 保持同步）
+    let remoteAuthConfig = {
+      globalEnable: true,
+      freeTrialCells: 10,
+      notice: "本工具由作者授权内部同事使用，请联系作者开通权限。",
+      whitelist: {
+        "RD-8888": { name: "示例白名单同事", enable: true, expire: "2027-12-31" }
+      },
+      blacklist: [
+        "RD-0000"
+      ]
+    };
+
+    function getTodayYYYYMMDD() {
+      const d = new Date();
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${y}${m}${day}`;
+    }
+
+    function formatYYYYMMDD(str8) {
+      const s = String(str8 || '');
+      if (s.length !== 8) return s;
+      return `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}`;
+    }
+
+    function getFutureYYYYMMDD(daysToAdd) {
+      const d = new Date();
+      d.setDate(d.getDate() + Number(daysToAdd || 7));
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${y}${m}${day}`;
+    }
 
     async function requestScreenWakeLock() {
       try {
@@ -749,28 +836,74 @@
     function updateLicenseBadgeUI() {
       const badge = document.getElementById('licenseStatusBadge');
       if (!badge) return;
+      if (remoteBlockReason && !isAuthorMaster) {
+        badge.className = "px-2 py-0.5 text-[10px] sm:text-[11px] font-bold rounded-full bg-rose-600/30 text-rose-200 border border-rose-500 cursor-pointer animate-pulse";
+        badge.textContent = "⛔ 已被作者远程停用";
+        return;
+      }
+      if (isAuthorMaster) {
+        badge.className = "px-2 py-0.5 text-[10px] sm:text-[11px] font-bold rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 cursor-pointer";
+        badge.textContent = "👑 作者主控端 (最高权限)";
+        return;
+      }
       if (isLicenseActivated) {
         badge.className = "px-2 py-0.5 text-[10px] sm:text-[11px] font-bold rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 cursor-pointer";
-        badge.textContent = "✅ 已授权正版";
+        badge.textContent = licenseBadgeDetail ? `✅ 已授权 (${licenseBadgeDetail})` : "✅ 已授权正版";
       } else {
+        const used = Math.min(freeTrialCellsLimit, trialListenedIndices.size);
         badge.className = "px-2 py-0.5 text-[10px] sm:text-[11px] font-bold rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/40 cursor-pointer animate-pulse";
-        badge.textContent = "🔒 试用版(免费试听前3格)";
+        badge.textContent = `🔒 试用版(已试听${used}/${freeTrialCellsLimit}格)`;
       }
     }
 
-    function checkLicenseGateForIndex(targetIdx) {
-      if (isLicenseActivated) return true;
-      if (targetIdx < 3) return true; // 未授权访客可免费体验前 3 格
+    function showLockModalWithReason(reasonText) {
       stopAutoPlay();
       const modalLock = document.getElementById('modalLicenseLock');
       const disp = document.getElementById('modalDeviceCodeDisplay');
       if (disp) disp.textContent = localDeviceCode;
       document.getElementById('inputLicenseKey').value = '';
       const err = document.getElementById('licenseErrorMsg');
-      err.textContent = "🔒 免费试听前 3 格已结束！请复制上方本机设备码发送给作者微信，获取专属授权激活码！";
+      err.textContent = reasonText;
       err.classList.remove('hidden');
       modalLock.classList.remove('hidden');
       modalLock.classList.add('flex');
+    }
+
+    function checkLicenseGateForIndex(targetIdx) {
+      if (isAuthorMaster) return true;
+
+      // 1. 严格模式：检查是否被本地另存为(file://)、断网或被 GitHub auth.json 远程封禁/关闭总开关
+      if (remoteBlockReason) {
+        showLockModalWithReason(remoteBlockReason);
+        return false;
+      }
+
+      // 2. 如果已激活，实时复核本地激活码是否已过期
+      if (isLicenseActivated) {
+        try {
+          const savedLic = localStorage.getItem('roadtest_v8_license_key') || '';
+          if (savedLic) {
+            const vRes = verifyLicenseKeyForDevice(savedLic, localDeviceCode);
+            if (!vRes.valid) {
+              isLicenseActivated = false;
+              licenseBadgeDetail = "";
+              updateLicenseBadgeUI();
+              showLockModalWithReason(vRes.reason || "⏰ 您的授权已到期，请联系作者续期！");
+              return false;
+            }
+          }
+        } catch (e) {}
+        return true;
+      }
+
+      // 3. 未激活用户：严格限制只能试听前 freeTrialCellsLimit (10) 格（索引 0~9），且累计试听格数不超过 10 格
+      const cellKey = `${currentSheetIndex}_${targetIdx}`;
+      const wouldExceedCount = !trialListenedIndices.has(cellKey) && trialListenedIndices.size >= freeTrialCellsLimit;
+      if (targetIdx < freeTrialCellsLimit && !wouldExceedCount) {
+        return true;
+      }
+
+      showLockModalWithReason(`🔒 免费试听 ${freeTrialCellsLimit} 格已结束！请复制上方本机设备码 (${localDeviceCode}) 发给作者获取激活码，或由作者在 GitHub 白名单中开启权限！`);
       return false;
     }
 
@@ -806,10 +939,10 @@
       }
       if (lockBtn) {
         if (isLocked2x) {
-          lockBtn.className = "px-2 py-0.5 rounded bg-yellow-400 text-slate-950 font-black text-[11px] transition";
-          lockBtn.textContent = "⚡ 2倍速锁: 已开启";
+          lockBtn.className = "px-1.5 py-0.5 rounded bg-yellow-400 text-slate-950 font-black text-[10px] transition shrink-0";
+          lockBtn.textContent = "⚡2倍速:已开";
         } else {
-          lockBtn.className = "px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-[11px] border border-slate-700 transition";
+          lockBtn.className = "px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-[10px] border border-slate-700 transition shrink-0";
           lockBtn.textContent = "⚡ 2倍速锁: 关";
         }
       }
@@ -952,6 +1085,7 @@
 
     function switchToSheetIndex(idx, autoSpeakFirst = true) {
       if (!workbookSheets.length || idx < 0 || idx >= workbookSheets.length) return;
+      syncRemoteAuthConfig(false);
       currentSheetIndex = idx;
       const activeSheet = workbookSheets[currentSheetIndex];
 
@@ -1520,7 +1654,7 @@
     function setSpeechStatusUI(text, colorClass = 'bg-slate-800 text-slate-300') {
       const badge = document.getElementById('hudSpeechStatusBadge');
       if (badge) {
-        badge.className = `text-[11px] font-bold px-2 py-0.5 rounded ${colorClass}`;
+        badge.className = `text-[10px] font-bold px-1.5 h-5 leading-5 rounded truncate w-full text-center block ${colorClass}`;
         badge.textContent = text;
       }
     }
@@ -1584,6 +1718,11 @@
 
     function speakCurrentCell(triggerSound = true) {
       if (!sequenceList.length) return;
+      if (!checkLicenseGateForIndex(currentIndex)) return;
+      if (!isLicenseActivated && !isAuthorMaster) {
+        trialListenedIndices.add(`${currentSheetIndex}_${currentIndex}`);
+        updateLicenseBadgeUI();
+      }
       const item = sequenceList[currentIndex];
       if (!item) return;
 
@@ -1980,6 +2119,249 @@
     // ============================================================================
     // 11. 算号器与通用辅助函数
     // ============================================================================
+    function computeLicenseForDevice(devCode) {
+      const clean = String(devCode || '').trim().toUpperCase().replace(/[^0-9]/g, '');
+      const num = parseInt(clean || '7492', 10);
+      const secret = ((num * 7) + 8419) % 10000;
+      return `AK-${String(secret).padStart(4, '0')}-PRO`;
+    }
+
+    function computeTimedSignature(devCode, yyyymmdd) {
+      const cleanDev = String(devCode || '').trim().toUpperCase().replace(/[^0-9]/g, '') || '7492';
+      const devNum = parseInt(cleanDev, 10);
+      const dateNum = parseInt(String(yyyymmdd || '').replace(/[^0-9]/g, ''), 10) || 20261231;
+      const sig = ((devNum * 31) + (dateNum % 10000) * 17 + Math.floor(dateNum / 10000) * 13 + 6829) % 10000;
+      return String(sig).padStart(4, '0');
+    }
+
+    function generateLicenseForDeviceAndDuration(devCode, durationVal) {
+      if (durationVal === 'perm') {
+        return computeLicenseForDevice(devCode);
+      }
+      const days = parseInt(durationVal, 10) || 7;
+      const expStr = getFutureYYYYMMDD(days);
+      const sig = computeTimedSignature(devCode, expStr);
+      return `AK-${expStr}-${sig}`;
+    }
+
+    function verifyLicenseKeyForDevice(inputKey, devCode) {
+      const val = String(inputKey || '').trim().toUpperCase();
+      if (!val) return { valid: false, reason: "请输入授权激活码" };
+
+      if (val === 'MASTER999') {
+        return { valid: true, isMaster: true, detail: "作者主控" };
+      }
+
+      // 1. 检查是否为永久激活码 AK-xxxx-PRO
+      const expectedPerm = computeLicenseForDevice(devCode);
+      if (val === expectedPerm) {
+        return { valid: true, isMaster: false, detail: "永久授权" };
+      }
+
+      // 2. 检查是否为带有效期的激活码 AK-YYYYMMDD-XXXX
+      const m = val.match(/^AK-(\d{8})-(\d{4})$/);
+      if (m) {
+        const expDate = m[1];
+        const sigPart = m[2];
+        const expectedSig = computeTimedSignature(devCode, expDate);
+        if (sigPart !== expectedSig) {
+          return { valid: false, reason: "❌ 激活码与本机设备码不匹配或日期被篡改！" };
+        }
+        const today = getTodayYYYYMMDD();
+        if (today > expDate) {
+          return {
+            valid: false,
+            reason: `⏰ 您的限时授权码已于 ${formatYYYYMMDD(expDate)} 到期！请联系作者续期。`
+          };
+        }
+        return {
+          valid: true,
+          isMaster: false,
+          detail: `有效期至 ${formatYYYYMMDD(expDate)}`
+        };
+      }
+
+      return { valid: false, reason: "❌ 授权激活码无效或与本机设备码不匹配！" };
+    }
+
+    function updateKeygenOutput() {
+      const devInput = document.getElementById('keygenInputDeviceCode')?.value || localDeviceCode;
+      const durSelect = document.getElementById('keygenDurationSelect')?.value || '7';
+      const outEl = document.getElementById('keygenOutputLicense');
+      if (outEl) {
+        outEl.value = generateLicenseForDeviceAndDuration(devInput, durSelect);
+      }
+    }
+
+    function evaluateLocalAndRemoteAuth() {
+      remoteBlockReason = "";
+      isLicenseActivated = false;
+      licenseBadgeDetail = "";
+
+      // 1. 先检查是否为作者本人 MASTER999
+      try {
+        const savedLic = localStorage.getItem('roadtest_v8_license_key') || '';
+        if (savedLic === 'MASTER999') {
+          isAuthorMaster = true;
+          isLicenseActivated = true;
+          licenseBadgeDetail = "作者主控";
+          updateLicenseBadgeUI();
+          return;
+        }
+      } catch (e) {}
+
+      // 2. 严格模式：拦截右键另存为到本地电脑 (file://) 运行
+      if (window.location.protocol === 'file:') {
+        remoteBlockReason = "⚠️ 检测到本地离线文件运行 (file://)！为保障作者控制权，请通过作者分享的 GitHub 网址在线访问。";
+        updateLicenseBadgeUI();
+        return;
+      }
+
+      // 3. 应用 GitHub auth.json 全局配置
+      if (remoteAuthConfig) {
+        if (typeof remoteAuthConfig.freeTrialCells === 'number') {
+          freeTrialCellsLimit = Math.max(0, remoteAuthConfig.freeTrialCells);
+        }
+        if (remoteAuthConfig.globalEnable === false) {
+          remoteBlockReason = remoteAuthConfig.notice || "⛔ 作者已关闭全员访问总开关，当前网站暂停开放！";
+          updateLicenseBadgeUI();
+          return;
+        }
+        const black = Array.isArray(remoteAuthConfig.blacklist) ? remoteAuthConfig.blacklist : [];
+        const whiteMap = remoteAuthConfig.whitelist || {};
+        const whiteEntry = whiteMap[localDeviceCode];
+
+        if (black.includes(localDeviceCode) || (whiteEntry && whiteEntry.enable === false)) {
+          remoteBlockReason = `⛔ 您的设备 (${localDeviceCode}) 已被作者远程停用收回权限！如有疑问请联系作者。`;
+          updateLicenseBadgeUI();
+          return;
+        }
+
+        // 如果在 GitHub auth.json 白名单中且 enable: true，免输密码直接检查到期日放行！
+        if (whiteEntry && whiteEntry.enable === true) {
+          const expRaw = String(whiteEntry.expire || '2099-12-31').replace(/[^0-9]/g, '');
+          const today = getTodayYYYYMMDD();
+          if (expRaw.length === 8 && today > expRaw) {
+            remoteBlockReason = `⏰ 您的云端白名单授权已于 ${whiteEntry.expire} 到期，请联系作者在 GitHub 续期！`;
+            updateLicenseBadgeUI();
+            return;
+          }
+          isLicenseActivated = true;
+          licenseBadgeDetail = `${whiteEntry.name || '白名单'}·至${whiteEntry.expire || '长期'}`;
+          updateLicenseBadgeUI();
+          return;
+        }
+      }
+
+      // 4. 若不在白名单也不在黑名单，检查本机是否输入过有效的算号器激活码
+      try {
+        const savedLic = localStorage.getItem('roadtest_v8_license_key') || '';
+        if (savedLic) {
+          const vRes = verifyLicenseKeyForDevice(savedLic, localDeviceCode);
+          if (vRes.valid) {
+            isLicenseActivated = true;
+            isAuthorMaster = Boolean(vRes.isMaster);
+            licenseBadgeDetail = vRes.detail || "已激活";
+          } else {
+            localStorage.removeItem('roadtest_v8_license_key');
+          }
+        }
+      } catch (e) {}
+
+      updateLicenseBadgeUI();
+    }
+
+    async function syncRemoteAuthConfig(showSuccessToast = false) {
+      if (window.location.protocol === 'file:') {
+        evaluateLocalAndRemoteAuth();
+        if (!isAuthorMaster && remoteBlockReason) {
+          showLockModalWithReason(remoteBlockReason);
+        }
+        return;
+      }
+
+      const isGitHubHost = /github\.io$/i.test(window.location.hostname);
+      try {
+        const remoteUrl = new URL('auth.json?t=' + Date.now(), window.location.href).href;
+        const resp = await fetch(remoteUrl, { cache: 'no-store' });
+        if (resp.ok) {
+          const data = await resp.json();
+          if (data && typeof data === 'object') {
+            remoteAuthConfig = data;
+            renderRemoteRulesListUI();
+          }
+        } else if (isGitHubHost && !isAuthorMaster) {
+          remoteBlockReason = "⚠️ 未能读取到 GitHub 仓库中的 auth.json 授权配置文件，请确认已上传 auth.json！";
+          updateLicenseBadgeUI();
+          showLockModalWithReason(remoteBlockReason);
+          return;
+        }
+      } catch (err) {
+        if ((isGitHubHost || !navigator.onLine) && !isAuthorMaster) {
+          remoteBlockReason = "⚠️ 网络已断开或无法连接 GitHub 授权中心 (auth.json)！本工具严禁断网离线白嫖，请恢复网络后重试。";
+          updateLicenseBadgeUI();
+          showLockModalWithReason(remoteBlockReason);
+          return;
+        }
+      }
+
+      evaluateLocalAndRemoteAuth();
+      if (!isAuthorMaster && remoteBlockReason) {
+        showLockModalWithReason(remoteBlockReason);
+      } else if (showSuccessToast) {
+        showToast("☁️ 已同步最新 GitHub (auth.json) 远程权限状态！");
+      }
+    }
+
+    function renderRemoteRulesListUI() {
+      const container = document.getElementById('remoteRulesListContainer');
+      if (!container) return;
+      const chkGlobal = document.getElementById('chkGlobalEnable');
+      if (chkGlobal) chkGlobal.checked = remoteAuthConfig.globalEnable !== false;
+      const trialIn = document.getElementById('inputFreeTrialCells');
+      if (trialIn) trialIn.value = remoteAuthConfig.freeTrialCells ?? 10;
+
+      const white = remoteAuthConfig.whitelist || {};
+      const black = Array.isArray(remoteAuthConfig.blacklist) ? remoteAuthConfig.blacklist : [];
+      const rows = [];
+
+      Object.keys(white).forEach(dev => {
+        const info = white[dev];
+        const enabled = info.enable !== false;
+        rows.push(`<div class="flex items-center justify-between px-2 py-1 rounded bg-slate-950 border border-slate-800">
+          <span><strong class="${enabled ? 'text-emerald-400' : 'text-rose-400'}">${dev}</strong> (${info.name || '同事'}) · ${enabled ? '✅允许至 ' + (info.expire || '长期') : '⛔已停用'}</span>
+          <button type="button" class="text-rose-400 hover:text-rose-300 font-bold px-1.5" data-del-dev="${dev}">删除</button>
+        </div>`);
+      });
+
+      black.forEach(dev => {
+        if (white[dev]) return;
+        rows.push(`<div class="flex items-center justify-between px-2 py-1 rounded bg-slate-950 border border-rose-500/30">
+          <span><strong class="text-rose-400">${dev}</strong> · ⛔黑名单远程封杀</span>
+          <button type="button" class="text-rose-400 hover:text-rose-300 font-bold px-1.5" data-del-black="${dev}">移除</button>
+        </div>`);
+      });
+
+      container.innerHTML = rows.length ? rows.join('') : '<div class="text-slate-500 text-center py-2">暂无单独黑白名单记录（默认凭算号器激活码使用）</div>';
+
+      container.querySelectorAll('[data-del-dev]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const d = btn.getAttribute('data-del-dev');
+          delete remoteAuthConfig.whitelist[d];
+          renderRemoteRulesListUI();
+          evaluateLocalAndRemoteAuth();
+        });
+      });
+      container.querySelectorAll('[data-del-black]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const d = btn.getAttribute('data-del-black');
+          remoteAuthConfig.blacklist = (remoteAuthConfig.blacklist || []).filter(x => x !== d);
+          renderRemoteRulesListUI();
+          evaluateLocalAndRemoteAuth();
+        });
+      });
+    }
+
     function initDeviceFingerprint() {
       try {
         const saved = localStorage.getItem('roadtest_device_code');
@@ -1999,14 +2381,7 @@
       } catch (e) {
         localDeviceCode = "RD-7492";
       }
-      try {
-        const savedLic = localStorage.getItem('roadtest_license_key');
-        const expected = computeLicenseForDevice(localDeviceCode);
-        if (savedLic === 'VIP888' || savedLic === 'MASTER999' || savedLic === '888888' || savedLic === expected) {
-          isLicenseActivated = true;
-        }
-      } catch (e) {}
-      updateLicenseBadgeUI();
+
       const disp = document.getElementById('adminLocalDeviceCode');
       if (disp) disp.textContent = localDeviceCode;
       const keygenIn = document.getElementById('keygenInputDeviceCode');
@@ -2014,18 +2389,15 @@
         keygenIn.value = localDeviceCode;
         updateKeygenOutput();
       }
-    }
+      renderRemoteRulesListUI();
+      evaluateLocalAndRemoteAuth();
+      syncRemoteAuthConfig(false);
 
-    function computeLicenseForDevice(devCode) {
-      const clean = String(devCode || '').trim().toUpperCase().replace(/[^0-9]/g, '');
-      const num = parseInt(clean || '7492', 10);
-      const secret = ((num * 7) + 8419) % 10000;
-      return `AK-${String(secret).padStart(4, '0')}-PRO`;
-    }
-
-    function updateKeygenOutput() {
-      const devInput = document.getElementById('keygenInputDeviceCode').value;
-      document.getElementById('keygenOutputLicense').value = computeLicenseForDevice(devInput);
+      // 每 3 分钟自动静默拉取一次 GitHub auth.json，并在窗口切回时立即复核
+      setInterval(() => syncRemoteAuthConfig(false), 180000);
+      window.addEventListener('focus', () => syncRemoteAuthConfig(false));
+      window.addEventListener('offline', () => syncRemoteAuthConfig(false));
+      window.addEventListener('online', () => syncRemoteAuthConfig(false));
     }
 
     function showToast(msg) {
@@ -2102,6 +2474,27 @@
       document.getElementById('btnFocusCurrentCell').addEventListener('click', () => focusAndZoomToActiveCell(true));
       document.getElementById('btnLocateCurrentRight').addEventListener('click', () => focusAndZoomToActiveCell(true));
 
+      // 一键放大表格区 / 收起展开左侧栏
+      let isTableMaxExpanded = false;
+      const btnExpand = document.getElementById('btnToggleExpandTable');
+      if (btnExpand) {
+        btnExpand.addEventListener('click', () => {
+          isTableMaxExpanded = !isTableMaxExpanded;
+          const sidebar = document.getElementById('leftControlSidebar');
+          if (isTableMaxExpanded) {
+            sidebar.classList.add('lg:w-[260px]');
+            sidebar.classList.remove('lg:w-[335px]', 'xl:w-[355px]');
+            btnExpand.innerHTML = '<span>↔️ 标准侧栏</span>';
+            showToast("📐 已进一步收窄操控台，最大化展示表格区！");
+          } else {
+            sidebar.classList.remove('lg:w-[260px]');
+            sidebar.classList.add('lg:w-[335px]', 'xl:w-[355px]');
+            btnExpand.innerHTML = '<span>↔️ 放大表格区</span>';
+          }
+          setTimeout(() => focusAndZoomToActiveCell(false), 150);
+        });
+      }
+
       // 表格缩放控制
       document.getElementById('zoomSliderInput').addEventListener('input', (e) => {
         applyTableZoom(parseInt(e.target.value, 10));
@@ -2157,11 +2550,24 @@
         showToast(isLocked2x ? "⚡ 已锁定常驻 2.0x 二倍速！" : "已恢复 1.0x 原速！");
       });
 
-      // 语速调节（默认 1.2x，实时重算剩余时间）
-      document.getElementById('speechRateInput').addEventListener('input', (e) => {
-        document.getElementById('speechRateLabel').textContent = `${e.target.value}x`;
+      // 语速调节（默认 1.2x，含 -0.1 / +0.1 按钮与滑块，实时重算剩余时间）
+      function setPreciseSpeechRate(val) {
+        const clamped = Math.max(0.8, Math.min(2.5, Math.round(val * 10) / 10));
+        document.getElementById('speechRateInput').value = clamped.toFixed(1);
+        document.getElementById('speechRateLabel').textContent = `${clamped.toFixed(1)}x`;
         updateAllTimeEstimatesUI();
         syncAutoPlayButtonUI();
+      }
+      document.getElementById('speechRateInput').addEventListener('input', (e) => {
+        setPreciseSpeechRate(parseFloat(e.target.value) || 1.2);
+      });
+      document.getElementById('btnRateMinus01').addEventListener('click', () => {
+        const cur = parseFloat(document.getElementById('speechRateInput').value) || 1.2;
+        setPreciseSpeechRate(cur - 0.1);
+      });
+      document.getElementById('btnRatePlus01').addEventListener('click', () => {
+        const cur = parseFloat(document.getElementById('speechRateInput').value) || 1.2;
+        setPreciseSpeechRate(cur + 0.1);
       });
 
       // 精确到 0.1 秒的停顿秒数双向同步（默认 0.7s，实时重算剩余时间）
@@ -2347,30 +2753,41 @@
 
       document.getElementById('btnUnlockLicense').addEventListener('click', () => {
         const val = document.getElementById('inputLicenseKey').value.trim().toUpperCase();
-        const expected = computeLicenseForDevice(localDeviceCode);
         const err = document.getElementById('licenseErrorMsg');
+
         if (val === 'MASTER999') {
-          // 作者本人输入暗语 MASTER999：不仅解锁正版，还直接秘密唤出作者算号器后台！
+          isAuthorMaster = true;
           isLicenseActivated = true;
-          try { localStorage.setItem('roadtest_license_key', val); } catch (e) {}
+          remoteBlockReason = "";
+          licenseBadgeDetail = "作者主控";
+          try { localStorage.setItem('roadtest_v8_license_key', val); } catch (e) {}
           updateLicenseBadgeUI();
           err.classList.add('hidden');
           modalLock.classList.add('hidden');
           modalLock.classList.remove('flex');
           openSecretAuthorKeygen();
-          showToast("👑 欢迎作者本人！已为您开启隐藏算号器后台！");
+          showToast("👑 欢迎作者本人！已开启远程云控与算号器后台！");
           return;
         }
-        if (val === 'VIP888' || val === expected) {
+
+        if (remoteBlockReason) {
+          err.textContent = remoteBlockReason;
+          err.classList.remove('hidden');
+          return;
+        }
+
+        const vRes = verifyLicenseKeyForDevice(val, localDeviceCode);
+        if (vRes.valid) {
           isLicenseActivated = true;
-          try { localStorage.setItem('roadtest_license_key', val); } catch (e) {}
+          licenseBadgeDetail = vRes.detail || "已授权";
+          try { localStorage.setItem('roadtest_v8_license_key', val); } catch (e) {}
           updateLicenseBadgeUI();
           err.classList.add('hidden');
           modalLock.classList.add('hidden');
           modalLock.classList.remove('flex');
-          showToast("🔓 授权码验证通过！已永久解锁本设备全部功能！");
+          showToast(`🔓 授权验证通过（${licenseBadgeDetail}）！`);
         } else {
-          err.textContent = "❌ 授权激活码无效或与本机设备码不匹配！请联系原作者微信获取正版授权！";
+          err.textContent = vRes.reason || "❌ 授权激活码无效或与本机设备码不匹配！";
           err.classList.remove('hidden');
         }
       });
@@ -2394,20 +2811,28 @@
       document.getElementById('btnUnlockAuthorGate').addEventListener('click', () => {
         const pwd = document.getElementById('inputAuthorGatePwd').value.trim().toUpperCase();
         if (pwd === 'MASTER999') {
+          isAuthorMaster = true;
+          isLicenseActivated = true;
+          try { localStorage.setItem('roadtest_v8_license_key', 'MASTER999'); } catch (e) {}
+          updateLicenseBadgeUI();
           openSecretAuthorKeygen();
-          showToast("👑 作者专属算号器后台已开启！");
+          showToast("👑 作者专属算号器与 GitHub 远程控制台已开启！");
         } else {
           showToast("❌ 密钥验证失败！");
         }
       });
 
       document.getElementById('btnSimulateUnlicensed').addEventListener('click', () => {
+        isAuthorMaster = false;
         isLicenseActivated = false;
-        try { localStorage.removeItem('roadtest_license_key'); } catch (e) {}
-        updateLicenseBadgeUI();
+        licenseBadgeDetail = "";
+        trialListenedIndices.clear();
+        currentIndex = 0;
+        try { localStorage.removeItem('roadtest_v8_license_key'); } catch (e) {}
+        evaluateLocalAndRemoteAuth();
         modalAdmin.classList.add('hidden');
         modalAdmin.classList.remove('flex');
-        showToast("🔒 已切换为【未激活访客状态】，试听第 4 格时将自动弹出授权锁！");
+        showToast(`🔒 已切换为【未激活同事状态】，免费试听前 ${freeTrialCellsLimit} 格，第 ${freeTrialCellsLimit + 1} 格自动弹窗锁死！`);
       });
 
       // 算号器与水印弹窗
@@ -2421,11 +2846,75 @@
         modalAdmin.classList.remove('flex');
       });
       document.getElementById('keygenInputDeviceCode').addEventListener('input', updateKeygenOutput);
+      document.getElementById('keygenDurationSelect').addEventListener('change', updateKeygenOutput);
       document.getElementById('btnCalculateLicense').addEventListener('click', () => {
         updateKeygenOutput();
         const code = document.getElementById('keygenOutputLicense').value;
         copyToClipboard(code);
-        showToast(`✅ 已复制激活码：${code}`);
+        showToast(`✅ 已生成并复制激活码：${code}`);
+      });
+
+      // GitHub auth.json 远程权限配置器事件
+      document.getElementById('chkGlobalEnable').addEventListener('change', (e) => {
+        remoteAuthConfig.globalEnable = e.target.checked;
+        evaluateLocalAndRemoteAuth();
+      });
+      document.getElementById('inputFreeTrialCells').addEventListener('change', (e) => {
+        remoteAuthConfig.freeTrialCells = Math.max(0, parseInt(e.target.value, 10) || 10);
+        evaluateLocalAndRemoteAuth();
+      });
+      document.getElementById('btnAddRemoteRule').addEventListener('click', () => {
+        const dev = document.getElementById('remoteAddDeviceInput').value.trim().toUpperCase();
+        const name = document.getElementById('remoteAddNameInput').value.trim() || '同事';
+        const status = document.getElementById('remoteAddStatusSelect').value;
+        if (!dev) {
+          showToast("⚠️ 请先输入同事的设备码（如 RD-7492）！");
+          return;
+        }
+        if (!remoteAuthConfig.whitelist) remoteAuthConfig.whitelist = {};
+        if (!Array.isArray(remoteAuthConfig.blacklist)) remoteAuthConfig.blacklist = [];
+
+        if (status === 'allow') {
+          remoteAuthConfig.blacklist = remoteAuthConfig.blacklist.filter(x => x !== dev);
+          remoteAuthConfig.whitelist[dev] = {
+            name,
+            enable: true,
+            expire: formatYYYYMMDD(getFutureYYYYMMDD(30))
+          };
+          showToast(`✅ 已将 ${dev} (${name}) 加入白名单！请复制下方 auth.json 更新到 GitHub。`);
+        } else {
+          remoteAuthConfig.whitelist[dev] = {
+            name,
+            enable: false,
+            expire: formatYYYYMMDD(getTodayYYYYMMDD())
+          };
+          if (!remoteAuthConfig.blacklist.includes(dev)) {
+            remoteAuthConfig.blacklist.push(dev);
+          }
+          showToast(`⛔ 已将 ${dev} (${name}) 列入封禁名单！`);
+        }
+        renderRemoteRulesListUI();
+        evaluateLocalAndRemoteAuth();
+      });
+
+      document.getElementById('btnCopyAuthJson').addEventListener('click', () => {
+        const jsonStr = JSON.stringify(remoteAuthConfig, null, 2);
+        copyToClipboard(jsonStr);
+        showToast("📋 已复制最新 auth.json 配置代码！去 GitHub 仓库粘贴保存即可全网生效！");
+      });
+
+      document.getElementById('btnDownloadAuthJson').addEventListener('click', () => {
+        const jsonStr = JSON.stringify(remoteAuthConfig, null, 2);
+        const blob = new Blob([jsonStr], { type: 'application/json;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'auth.json';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        showToast("💾 已下载 auth.json！将它和 index.html 一起上传到 GitHub 即可！");
       });
       document.getElementById('keygenOutputLicense').addEventListener('click', (e) => {
         copyToClipboard(e.target.value);
