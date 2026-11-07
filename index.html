@@ -75,7 +75,7 @@
     }
   </style>
 </head>
-<body class="bg-slate-950 text-slate-100 h-screen overflow-hidden flex flex-col selection:bg-amber-500 selection:text-slate-950">
+<body class="bg-slate-950 text-slate-100 h-screen h-[100dvh] overflow-hidden flex flex-col selection:bg-amber-500 selection:text-slate-950">
 
   <!-- 顶部超紧凑导航栏（把垂直空间最大限度让给大表格与实时看板） -->
   <header class="bg-slate-900 border-b border-slate-800 shrink-0 z-30">
@@ -131,27 +131,27 @@
        - 手机端 (小于lg)：上半屏大表格 (占 55% 高) + 下半屏零滚动紧凑操控台 (占 45% 高，【实时播报红字看板】置顶第一排！) -->
   <main id="mainWorkspaceContainer" class="flex-1 max-w-[1920px] w-full mx-auto px-1.5 sm:px-2.5 py-1 flex flex-col md:flex-row gap-1.5 overflow-hidden min-h-0">
 
-    <!-- ==================== 紧凑整合操控台 (电脑/平板在左固定窄栏，手机在下，顶上是实时播报、中间是按钮、最底下是语速与停顿秒数编辑！) ==================== -->
-    <aside id="leftControlSidebar" class="order-2 md:order-1 h-[52%] md:h-full md:w-[330px] xl:w-[355px] shrink-0 flex flex-col justify-between gap-1 bg-slate-900 border border-slate-800 rounded-2xl p-1.5 sm:p-2 overflow-y-auto min-h-0 shadow-2xl transition-all duration-200">
+    <!-- ==================== 紧凑整合操控台 (内部所有区块全部锁死固定行高，播放时绝不膨胀挤压底部语速与停顿设置！) ==================== -->
+    <aside id="leftControlSidebar" class="order-2 md:order-1 h-[54%] md:h-full md:w-[335px] xl:w-[360px] shrink-0 flex flex-col justify-start gap-1.5 bg-slate-900 border border-slate-800 rounded-2xl p-1.5 sm:p-2 overflow-y-auto min-h-0 shadow-2xl transition-all duration-200">
       
-      <!-- 【第 1 顺位：最顶端置顶！】实时播报红字大看板（一睁眼就在最上面，绝不往下滑！） -->
-      <div class="bg-slate-950 border-2 border-amber-500/80 rounded-xl p-2 flex flex-col gap-1 shadow-lg shrink-0">
+      <!-- 【第 1 顺位：最顶端置顶！】实时播报红字大看板（内部所有行全部锁死单行高度，播放时 1 像素都不会变高！） -->
+      <div class="bg-slate-950 border-2 border-amber-500/80 rounded-xl p-1.5 sm:p-2 flex flex-col gap-1 shadow-lg shrink-0">
         
-        <!-- 看板顶栏：当前表名 + 列标题 + 项目名 + 进度 + 2倍速锁 -->
-        <div class="flex flex-wrap items-center justify-between gap-1">
-          <div class="flex flex-wrap items-center gap-1 min-w-0">
-            <span id="hudSheetBadge" class="px-1.5 py-0.5 rounded bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 font-bold text-[10px] truncate max-w-[90px]">
+        <!-- 看板顶栏：严格单行 flex-nowrap，绝不换行撑高卡片 -->
+        <div class="flex items-center justify-between gap-1 h-5 overflow-hidden">
+          <div class="flex items-center gap-1 min-w-0 overflow-hidden">
+            <span id="hudSheetBadge" class="px-1 py-0.5 rounded bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 font-bold text-[10px] truncate max-w-[72px] shrink-0">
               表1-压实度
             </span>
-            <span id="hudColBadge" class="px-1.5 py-0.5 rounded bg-blue-500/20 border border-blue-500/40 text-blue-300 font-bold text-[10px] truncate">
+            <span id="hudColBadge" class="px-1 py-0.5 rounded bg-blue-500/20 border border-blue-500/40 text-blue-300 font-bold text-[10px] truncate max-w-[82px] shrink-0">
               列标题：测点1
             </span>
-            <span id="hudRowBadge" class="px-1.5 py-0.5 rounded bg-amber-500/20 border border-amber-500/40 text-amber-300 font-bold text-[10px] truncate">
+            <span id="hudRowBadge" class="px-1 py-0.5 rounded bg-amber-500/20 border border-amber-500/40 text-amber-300 font-bold text-[10px] truncate">
               项目：桩号
             </span>
           </div>
           <div class="flex items-center gap-1 shrink-0">
-            <span class="text-[11px] font-mono text-slate-300">
+            <span class="text-[10px] font-mono text-slate-300">
               <span id="hudProgressText" class="text-rose-400 font-black">1/24</span>
             </span>
             <button id="btnToggle2xLock" class="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-[10px] border border-slate-700 transition shrink-0">
@@ -160,31 +160,31 @@
           </div>
         </div>
 
-        <!-- 核心数字大屏：【左：⬅️ 上一格已抄核对】 + 【右：🔴 当前实时播报红字（超大醒目）】 -->
-        <div class="py-1.5 px-2 bg-slate-900/95 rounded-lg border border-slate-800 grid grid-cols-12 items-center gap-1.5">
+        <!-- 核心数字大屏：固定高度 h-14，左上一格核对 + 右当前实时播报红字，绝不因换列提示撑高 -->
+        <div class="h-14 px-2 bg-slate-900/95 rounded-lg border border-slate-800 grid grid-cols-12 items-center gap-1.5 shrink-0 overflow-hidden">
           <!-- 左侧 (4/12)：上一格信息 -->
-          <div class="col-span-4 border-r border-slate-800 pr-1.5 flex flex-col justify-center min-w-0">
-            <div class="text-[10px] text-slate-400 font-semibold truncate">⬅️ 上一格：</div>
-            <div id="hudPrevLabel" class="text-[10px] font-bold text-slate-300 truncate">(第1格)</div>
-            <div id="hudPrevValue" class="text-base sm:text-xl font-black text-amber-300/90 font-mono truncate leading-tight">—</div>
-            <div id="hudLineChangeAlert" class="px-1 py-0.2 rounded text-[9px] font-bold bg-emerald-500/20 text-emerald-300 hidden truncate">
-              ⚠️已换列
+          <div class="col-span-4 border-r border-slate-800 pr-1.5 flex flex-col justify-center min-w-0 overflow-hidden">
+            <div class="flex items-center justify-between gap-0.5">
+              <span class="text-[9px] text-slate-400 font-semibold truncate">⬅️上一格</span>
+              <span id="hudLineChangeAlert" class="px-1 rounded text-[9px] font-bold bg-emerald-500/20 text-emerald-300 hidden truncate shrink-0">换列</span>
             </div>
+            <div id="hudPrevLabel" class="text-[10px] font-bold text-slate-300 truncate leading-tight">(第1格)</div>
+            <div id="hudPrevValue" class="text-sm sm:text-lg font-black text-amber-300/90 font-mono truncate leading-tight">—</div>
           </div>
 
           <!-- 右侧 (8/12)：当前手抄红字超大数值 -->
-          <div class="col-span-8 pl-1 flex flex-col justify-center min-w-0">
-            <div id="hudSpokenPreview" class="text-[10px] font-bold text-emerald-400 truncate">
+          <div class="col-span-8 pl-1 flex flex-col justify-center min-w-0 overflow-hidden">
+            <div id="hudSpokenPreview" class="text-[10px] font-bold text-emerald-400 truncate leading-tight">
               🔊 播报：“桩号，K零加零二零左”
             </div>
-            <div id="hudMainValue" class="text-2xl sm:text-4xl font-black tracking-tight text-rose-400 font-mono select-all truncate leading-tight">
+            <div id="hudMainValue" class="text-2xl sm:text-3xl font-black tracking-tight text-rose-400 font-mono select-all truncate leading-tight">
               K0+020左
             </div>
           </div>
         </div>
 
-        <!-- 紧凑底部行：当前表剩余时间 ｜ 全文件剩余时间 ｜ 实时倒计时状态 -->
-        <div class="grid grid-cols-2 gap-1.5 bg-slate-900/70 px-2 py-1 rounded-lg border border-slate-800/80 text-[10px]">
+        <!-- 紧凑底部行：当前表剩余时间 ｜ 全文件剩余时间 -->
+        <div class="grid grid-cols-2 gap-1.5 bg-slate-900/70 px-2 py-0.5 rounded-lg border border-slate-800/80 text-[10px] h-5 items-center shrink-0 overflow-hidden">
           <div class="flex items-center justify-between gap-1 truncate">
             <span class="text-slate-400 shrink-0">⏱️本表:</span>
             <span id="etaCurrentSheetText" class="font-mono font-black text-amber-300 truncate">约 42秒</span>
@@ -195,7 +195,7 @@
           </div>
         </div>
 
-        <div class="flex items-center justify-between gap-1 text-[10px] h-5 shrink-0">
+        <div class="flex items-center justify-between gap-1 text-[10px] h-5 shrink-0 overflow-hidden">
           <span id="hudSpeechStatusBadge" class="font-bold px-1.5 h-5 leading-5 rounded bg-slate-800 text-slate-300 truncate w-full text-center block">
             ⏸️ 单击下方绿键/空格/耳机连播
           </span>
@@ -206,12 +206,12 @@
         </div>
       </div>
 
-      <!-- 【第 2 顺位：核心操控按钮组】紧凑型主按钮 + 四联方向键 -->
+      <!-- 【第 2 顺位：核心操控按钮组】锁死单行文字 truncate，播放后文字变长也绝不换行撑高按钮！ -->
       <div class="flex flex-col gap-1 shrink-0">
-        <!-- 主控连播按钮（高度精简，保持极佳点击手感） -->
-        <button id="btnAutoPlayToggle" class="w-full py-2 sm:py-2.5 px-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 active:scale-[0.99] text-slate-950 font-black text-sm sm:text-base flex flex-col items-center justify-center shadow-lg shadow-emerald-500/20 transition select-none">
-          <span id="mainBtnPrimaryText">▶️ 单击：开启自动连播</span>
-          <span id="autoIntervalLabel" class="text-[10px] font-extrabold opacity-85">
+        <!-- 主控连播按钮（固定高度 h-12，内部两行文字严格单行省略号，绝不换行膨胀！） -->
+        <button id="btnAutoPlayToggle" class="w-full h-12 px-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 active:scale-[0.99] text-slate-950 font-black text-xs sm:text-sm flex flex-col items-center justify-center shadow-lg shadow-emerald-500/20 transition select-none overflow-hidden shrink-0">
+          <span id="mainBtnPrimaryText" class="truncate max-w-full block leading-tight">▶️ 单击：开启自动连播</span>
+          <span id="autoIntervalLabel" class="text-[10px] font-extrabold opacity-85 truncate max-w-full block leading-tight">
             ⚡ 按住此键/长按空格=2倍速 ｜ 🎧 单击耳机暂停
           </span>
         </button>
@@ -287,7 +287,7 @@
     </aside>
 
     <!-- ==================== 超大表格视图区 (电脑端占 80%~100% 宽度，手机端占 55% 高度，单行紧凑工具栏把空间全留给表格！) ==================== -->
-    <section id="rightTableSection" class="order-1 md:order-2 h-[48%] md:h-full flex-1 min-w-0 bg-slate-900 border border-slate-800 rounded-2xl p-2 flex flex-col gap-1.5 overflow-hidden min-h-0 shadow-2xl">
+    <section id="rightTableSection" class="order-1 md:order-2 h-[46%] md:h-full flex-1 min-w-0 bg-slate-900 border border-slate-800 rounded-2xl p-2 flex flex-col gap-1.5 overflow-hidden min-h-0 shadow-2xl">
       
       <!-- 二合一超紧凑工具栏：左选工作表 + 中间缩放定位 + 右侧增删红字/全屏展表（省掉多余副标题行，把高度全让给表格！） -->
       <div class="flex flex-wrap items-center justify-between gap-1.5 pb-1.5 border-b border-slate-800 shrink-0">
@@ -1144,8 +1144,9 @@
       // 自动丝滑滚动当前工作表标签到可视区域正中央（解决点了几下下一张表被挡住看不到的问题）
       setTimeout(() => {
         const activeTabBtn = bar.querySelector('.sheet-tab-active');
-        if (activeTabBtn) {
-          activeTabBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+        if (activeTabBtn && bar.clientWidth > 0) {
+          const targetLeft = activeTabBtn.offsetLeft - (bar.clientWidth / 2) + (activeTabBtn.clientWidth / 2);
+          bar.scrollTo({ left: Math.max(0, targetLeft), behavior: 'smooth' });
         }
       }, 30);
     }
@@ -1435,22 +1436,32 @@
       applyTableZoom(comfortableZoom);
 
       setTimeout(() => {
-        const activeTd = table.querySelector('td.crosshair-active');
-        if (activeTd) {
-          activeTd.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
-        }
+        scrollActiveCellIntoViewGentle(true);
         if (showNotification) {
           showToast(`🎯 已回到当前播放格 (${comfortableZoom}%)！`);
         }
       }, 60);
     }
 
-    function scrollActiveCellIntoViewGentle() {
+    function scrollActiveCellIntoViewGentle(forceCenter = false) {
+      const viewport = document.getElementById('tableScrollViewport');
       const table = document.getElementById('mainDataTable');
-      if (!table) return;
+      if (!viewport || !table) return;
       const activeTd = table.querySelector('td.crosshair-active');
-      if (activeTd) {
-        activeTd.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+      if (!activeTd) return;
+
+      // 只滚动表格内部视口 #tableScrollViewport，绝不调用 scrollIntoView 避免带动整个页面往上滚而把最底下的语速/停顿框滚出屏幕！
+      const vpRect = viewport.getBoundingClientRect();
+      const tdRect = activeTd.getBoundingClientRect();
+      const deltaTop = (tdRect.top + tdRect.height / 2) - (vpRect.top + vpRect.height / 2);
+      const deltaLeft = (tdRect.left + tdRect.width / 2) - (vpRect.left + vpRect.width / 2);
+
+      if (forceCenter || Math.abs(deltaTop) > vpRect.height * 0.35 || Math.abs(deltaLeft) > vpRect.width * 0.35) {
+        viewport.scrollTo({
+          top: Math.max(0, viewport.scrollTop + deltaTop),
+          left: Math.max(0, viewport.scrollLeft + deltaLeft),
+          behavior: 'smooth'
+        });
       }
     }
 
@@ -1587,7 +1598,7 @@
 
       if (activeItem.isNewColOrRow && currentIndex > 0) {
         lineAlertEl.classList.remove('hidden');
-        lineAlertEl.textContent = `⚠️ 本格已换到【${activeItem.colLabel}】`;
+        lineAlertEl.textContent = `⚠️换${activeItem.colLabel}`;
       } else {
         lineAlertEl.classList.add('hidden');
       }
